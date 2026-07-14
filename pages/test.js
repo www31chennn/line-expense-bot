@@ -292,6 +292,14 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
     );
   }
 
+  if (result.type === 'confirm_category_cancelled') {
+    return (
+      <div style={{ color: '#999' }}>
+        ❌ 已取消，這筆沒有記錄{result.skippedCount > 1 ? `（連同待確認的其他 ${result.skippedCount - 1} 筆一起取消）` : ''}
+      </div>
+    );
+  }
+
   if (result.type === 'record_with_confirm' || result.type === 'confirm_category') {
     const item = result.item;
     return (
@@ -334,6 +342,21 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
               {cat}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => onSelectCategory('取消')}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #999',
+              borderRadius: 16,
+              background: '#fff',
+              color: '#999',
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            ❌ 取消
+          </button>
         </div>
       </div>
     );
