@@ -1,0 +1,123 @@
+import { useEffect, useState } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const COLORS = {
+  飲食: '#f97066',
+  交通: '#4f9cf9',
+  購物: '#f9c846',
+  娛樂: '#a78bfa',
+  醫療: '#34d399',
+  居家: '#fb923c',
+  其他: '#9ca3af',
+};
+
+function currentMonth() {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export default function ReportPage() {
+  const [month, setMonth] = useState(currentMonth());
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+
+    fetch(`/api/monthly-report?userId=test-user&month=${month}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error) {
+          setError(data.error);
+          setReport(null);
+        } else {
+          setReport(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [month]);
+
+  return (
+    <div style={{ maxWidth: 480, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 16px' }}>
+      <h2>每月分類報表</h2>
+
+      <input
+        type="month"
+        value={month}
+        onChange={(e) => setMonth(e.target.value)}
+        style={{ padding: 8, fontSize: 16, marginBottom: 16 }}
+      />
+
+      {loading && <div style={{ color: '#999' }}>載入中...</div>}
+      {error && <div style={{ color: '#a33' }}>❌ {error}</div>}
+
+      {report && !loading && (
+        <>
+          <div style={{ fontSize: 18, marginBottom: 8 }}>
+            {report.month} 總支出：<strong>${report.total}</strong>（共 {report.count} 筆）
+          </div>
+
+          {report.categories.length === 0 ? (
+            <div style={{ color: '#999' }}>這個月還沒有任何記錄</div>
+          ) : (
+            <>
+              <div style={{ width: '100%', height: 280 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={report.categories}
+                      dataKey="amount"
+                      nameKey="category"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label={({ category, percentage }) => `${category} ${percentage}%`}
+                    >
+                      {report.categories.map((entry) => (
+                        <Cell key={entry.category} fill={COLORS[entry.category] || '#9ca3af'} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${value}`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <table style={{ width: '100%', marginTop: 16, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
+                    <th style={{ padding: 8 }}>分類</th>
+                    <th style={{ padding: 8 }}>金額</th>
+                    <th style={{ padding: 8 }}>佔比</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.categories.map((c) => (
+                    <tr key={c.category} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: 8 }}>{c.category}</td>
+                      <td style={{ padding: 8 }}>${c.amount}</td>
+                      <td style={{ padding: 8 }}>{c.percentage}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
