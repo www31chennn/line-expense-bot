@@ -21,11 +21,11 @@ const richMenuBody = {
   chatBarText: '選單',
   areas: [
     { bounds: { x: 0, y: 0, width: 833, height: 843 }, action: { type: 'message', text: '列出今天所有記錄' } },
-    { bounds: { x: 833, y: 0, width: 834, height: 843 }, action: { type: 'message', text: '列出這個月所有記錄' } },
-    { bounds: { x: 1667, y: 0, width: 833, height: 843 }, action: { type: 'message', text: '這個月還剩多少可以花' } },
-    { bounds: { x: 0, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '匯出報表' } },
-    { bounds: { x: 833, y: 843, width: 834, height: 843 }, action: { type: 'message', text: '我要編輯' } },
-    { bounds: { x: 1667, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '我要刪除一筆' } },
+    { bounds: { x: 833, y: 0, width: 834, height: 843 }, action: { type: 'message', text: '列出這週所有記錄' } },
+    { bounds: { x: 1667, y: 0, width: 833, height: 843 }, action: { type: 'message', text: '列出這個月所有記錄' } },
+    { bounds: { x: 0, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '這個月還剩多少可以花' } },
+    { bounds: { x: 833, y: 843, width: 834, height: 843 }, action: { type: 'message', text: '設定預算' } },
+    { bounds: { x: 1667, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '我要編輯' } },
   ],
 };
 

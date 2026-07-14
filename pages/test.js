@@ -121,32 +121,6 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
-  if (result.type === 'query_category_budget') {
-    return (
-      <div>
-        <div style={{ color: '#1a5cad', fontSize: 13, marginBottom: 6 }}>
-          📊 {result.month} 分類預算{result.monthlyLimit == null && '（尚未設定月預算上限，只顯示比例）'}
-        </div>
-        {result.table.map((c) => {
-          const hasAmount = c.allocatedAmount != null;
-          const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
-          const barColor =
-            c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : CATEGORY_COLORS[c.category];
-          return (
-            <div key={c.category} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span>{c.category}</span>
-                <span style={{ color: '#999' }}>{hasAmount ? `$${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}</span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                <div style={{ width: `${Math.min(100, pct)}%`, background: barColor, height: 6, borderRadius: 4 }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   if (result.type === 'budget_status') {
     const overallColor =
@@ -393,63 +367,13 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
-  if (result.type === 'export_report') {
-    if (result.categories.length === 0) {
-      return <div style={{ color: '#999' }}>🧾 {result.month} 還沒有任何記錄</div>;
-    }
-    const maxAmount = Math.max(...result.categories.map((c) => c.amount));
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#333', color: '#fff', padding: '10px 14px' }}>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>🧾 {result.month} 消費總覽</div>
-          <div style={{ fontSize: 22, fontWeight: 'bold' }}>${result.total}</div>
-          {result.monthlyLimit != null && (
-            <div style={{ fontSize: 12, opacity: 0.8 }}>
-              預算 ${result.monthlyLimit}（{Math.round((result.total / result.monthlyLimit) * 100)}%）
-            </div>
-          )}
-        </div>
-        <div style={{ padding: '10px 14px' }}>
-          {result.categories.map((c) => (
-            <div key={c.category} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>{c.category}</span>
-                <span>
-                  ${c.amount}（{c.percentage}%）
-                </span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6, marginTop: 2 }}>
-                <div
-                  style={{
-                    width: `${(c.amount / maxAmount) * 100}%`,
-                    background: CATEGORY_COLORS[c.category] || '#9ca3af',
-                    height: 6,
-                    borderRadius: 4,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'edit_unspecified') {
+  if (result.type === 'manage_unspecified') {
     if (result.candidates.length === 0) {
       return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
     }
     return (
       <div style={{ color: '#b8860b' }}>
-        <div>❓ 要{result.action === 'delete' ? '刪除' : '編輯'}哪一筆？（顯示最近 {result.candidates.length} 筆）</div>
+        <div>❓ 要編輯或刪除哪一筆？（顯示最近 {result.candidates.length} 筆）</div>
         <div style={{ marginTop: 4 }}>
           {result.candidates.map((r) => (
             <button key={r.id} type="button" style={buttonStyle} onClick={() => onSelectIndex(r.index)}>
@@ -457,6 +381,56 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             </button>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'choose_action') {
+    const r = result.record;
+    return (
+      <div style={{ color: '#b8860b' }}>
+        {result.invalid && <div style={{ color: '#a33', fontSize: 13, marginBottom: 4 }}>⚠️ 看不懂，請點下面按鈕：</div>}
+        <div>
+          ✏️ 選好了：{r.date} {r.item} ${r.amount}（{r.category}）
+        </div>
+        <div>要編輯還是刪除？</div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button
+            type="button"
+            onClick={() => onSelectCategory('編輯')}
+            style={{ padding: '6px 14px', border: '1px solid #b8860b', borderRadius: 16, background: '#fff', color: '#b8860b', cursor: 'pointer' }}
+          >
+            ✏️ 編輯
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectCategory('刪除')}
+            style={{ padding: '6px 14px', border: '1px solid #a33', borderRadius: 16, background: '#fff', color: '#a33', cursor: 'pointer' }}
+          >
+            🗑️ 刪除
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectCategory('取消')}
+            style={{ padding: '6px 14px', border: '1px solid #999', borderRadius: 16, background: '#fff', color: '#999', cursor: 'pointer' }}
+          >
+            ❌ 取消
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'manage_cancelled') {
+    return <div style={{ color: '#999' }}>❌ 已取消</div>;
+  }
+
+  if (result.type === 'budget_help') {
+    return (
+      <div style={{ color: '#1a5cad', fontSize: 14 }}>
+        💰 跟我說「薪水50000，目標存15000」或「薪水50000，最多花70%」，我就會幫你算出每月可花上限。
+        <br />
+        之後想改分類比例可以說「修改飲食為30%」。
       </div>
     );
   }
@@ -566,12 +540,11 @@ export default function TestPage() {
 
   const quickActions = [
     { label: '📅 今日明細', text: '列出今天所有記錄' },
-    { label: '🗓️ 本月明細', text: '列出這個月所有記錄' },
+    { label: '🗓️ 本週明細', text: '列出這週所有記錄' },
+    { label: '📆 本月明細', text: '列出這個月所有記錄' },
     { label: '💰 預算狀態', text: '這個月還剩多少可以花' },
-    { label: '📊 分類預算', text: '各分類預算是多少' },
-    { label: '🧾 匯出報表', text: '匯出報表' },
-    { label: '✏️ 編輯', text: '我要編輯' },
-    { label: '🗑️ 刪除', text: '我要刪除一筆' },
+    { label: '⚙️ 設定預算', text: '設定預算' },
+    { label: '✏️ 編輯記錄', text: '我要編輯' },
   ];
 
   return (
