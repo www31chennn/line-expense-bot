@@ -121,61 +121,78 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
 
   if (result.type === 'query_category_budget') {
     return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>
+      <div>
+        <div style={{ color: '#1a5cad', fontSize: 13, marginBottom: 6 }}>
           📊 {result.month} 分類預算{result.monthlyLimit == null && '（尚未設定月預算上限，只顯示比例）'}
         </div>
-        <table style={{ width: '100%', marginTop: 6, fontSize: 13, borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-              <th style={{ padding: '2px 6px' }}>分類</th>
-              <th style={{ padding: '2px 6px' }}>比例</th>
-              {result.monthlyLimit != null && (
-                <>
-                  <th style={{ padding: '2px 6px' }}>預算上限</th>
-                  <th style={{ padding: '2px 6px' }}>已花</th>
-                  <th style={{ padding: '2px 6px' }}>剩餘</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {result.table.map((c) => (
-              <tr key={c.category}>
-                <td style={{ padding: '2px 6px' }}>{c.category}</td>
-                <td style={{ padding: '2px 6px' }}>{c.percentage}%</td>
-                {result.monthlyLimit != null && (
-                  <>
-                    <td style={{ padding: '2px 6px' }}>${c.allocatedAmount}</td>
-                    <td style={{ padding: '2px 6px' }}>${c.spent}</td>
-                    <td
-                      style={{
-                        padding: '2px 6px',
-                        color: c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : '#0a7d32',
-                        fontWeight: c.warningLevel !== 'ok' ? 'bold' : 'normal',
-                      }}
-                    >
-                      {c.warningLevel !== 'ok' && (c.warningLevel === 'over' ? '🚨 ' : '⚠️ ')}${c.remaining}
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {result.table.map((c) => {
+          const hasAmount = c.allocatedAmount != null;
+          const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
+          const barColor =
+            c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : CATEGORY_COLORS[c.category];
+          return (
+            <div key={c.category} style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span>{c.category}</span>
+                <span style={{ color: '#999' }}>{hasAmount ? `$${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}</span>
+              </div>
+              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                <div style={{ width: `${Math.min(100, pct)}%`, background: barColor, height: 6, borderRadius: 4 }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
   if (result.type === 'budget_status') {
-    if (result.notSet) {
-      return <div style={{ color: '#999' }}>⚠️ 還沒有設定薪水或目標，先跟我說「薪水50000，目標存15000」之類的</div>;
-    }
+    const overallColor =
+      result.warningLevel === 'over' ? '#a33' : result.warningLevel === 'warning' ? '#b8860b' : '#1a5cad';
     return (
-      <div style={{ color: result.warningLevel === 'over' ? '#a33' : result.warningLevel === 'warning' ? '#b8860b' : '#1a5cad' }}>
-        {budgetIcon(result.warningLevel)} {result.month} 已花 ${result.spent} / ${result.monthlyLimit}（{result.percentageUsed}%）
-        <br />
-        {result.remaining >= 0 ? `還可以花 $${result.remaining}` : `已超支 $${Math.abs(result.remaining)}`}
+      <div>
+        {result.notSet ? (
+          <div style={{ color: '#999', marginBottom: 8 }}>
+            ⚠️ 還沒有設定薪水或目標，先跟我說「薪水50000，目標存15000」之類的
+          </div>
+        ) : (
+          <div style={{ color: overallColor, marginBottom: 10 }}>
+            {budgetIcon(result.warningLevel)} {result.month} 已花 ${result.spent} / ${result.monthlyLimit}（
+            {result.percentageUsed}%）
+            <br />
+            {result.remaining >= 0 ? `還可以花 $${result.remaining}` : `已超支 $${Math.abs(result.remaining)}`}
+          </div>
+        )}
+        {result.categories && result.categories.length > 0 && (
+          <div>
+            {result.categories.map((c) => {
+              const hasAmount = c.allocatedAmount != null;
+              const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
+              const barColor =
+                c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : CATEGORY_COLORS[c.category];
+              return (
+                <div key={c.category} style={{ marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span>{c.category}</span>
+                    <span style={{ color: '#999' }}>
+                      {hasAmount ? `$${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}
+                    </span>
+                  </div>
+                  <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, pct)}%`,
+                        background: barColor,
+                        height: 6,
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -236,7 +253,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
     return (
       <div style={{ color: '#1a5cad' }}>
         <div>
-          📋 共 {result.records.length} 筆，總計 ${result.total}
+          📋 共 {result.count} 筆，總計 ${result.total}
         </div>
         <div style={{ marginTop: 4, fontSize: 14 }}>
           {result.records.map((r) => (
@@ -262,6 +279,15 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
             </div>
           ))}
         </div>
+        {result.hasMore && (
+          <button
+            type="button"
+            style={{ ...buttonStyle, marginTop: 8, color: '#1a5cad', fontWeight: 'bold' }}
+            onClick={() => onSelectIndex('看更多')}
+          >
+            看更多 ↓
+          </button>
+        )}
       </div>
     );
   }
