@@ -42,7 +42,9 @@ function budgetIcon(level) {
 // onSelectIndex(index): 選了 ambiguous 清單裡的第幾筆
 // onDeleteIndex(index): 想直接刪除 list 清單裡的第幾筆
 // onSelectCategory(category): 回答「這筆算哪一類」
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
+// onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
+// onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
+function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail) {
   if (result.error) {
     return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
   }
@@ -193,6 +195,28 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
             })}
           </div>
         )}
+        {result.categories && result.categories.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+            {result.categories.map((c) => (
+              <button
+                key={c.category}
+                type="button"
+                onClick={() => onCategoryDetail(c.category)}
+                style={{
+                  padding: '4px 10px',
+                  border: `1px solid ${CATEGORY_COLORS[c.category] || '#999'}`,
+                  borderRadius: 14,
+                  background: '#fff',
+                  color: CATEGORY_COLORS[c.category] || '#999',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                {c.category} 明細
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -283,7 +307,14 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory) {
           <button
             type="button"
             style={{ ...buttonStyle, marginTop: 8, color: '#1a5cad', fontWeight: 'bold' }}
-            onClick={() => onSelectIndex('看更多')}
+            onClick={() =>
+              onListMore({
+                category: result.category,
+                startDate: result.startDate,
+                endDate: result.endDate,
+                offset: result.nextOffset,
+              })
+            }
           >
             看更多 ↓
           </button>
@@ -508,6 +539,24 @@ export default function TestPage() {
     }
   }
 
+  // 分頁專用：直接帶查詢條件跟 offset，不經過 AI 分類，不依賴任何全域狀態
+  async function sendListMore(params) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listMore: params, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: '看更多', result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: '看更多', result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = message;
@@ -553,7 +602,9 @@ export default function TestPage() {
                 h.result,
                 (index) => sendMessage(String(index)),
                 (index) => sendMessage(`刪除第${index}筆`),
-                (category) => sendMessage(category)
+                (category) => sendMessage(category),
+                (params) => sendListMore(params),
+                (category) => sendMessage(`列出這個月${category}`)
               )}
             </div>
           </div>

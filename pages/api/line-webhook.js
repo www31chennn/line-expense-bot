@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { handleMessage } from '../../lib/parseExpense';
+import { handleMessage, getListPage } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
 
 // 要驗證簽章必須拿到「原始」request body，所以關掉 Next.js 內建的自動 JSON 解析
@@ -43,6 +43,21 @@ async function handleEvent(event) {
   try {
     if (event.type === 'follow') {
       await replyMessages(event.replyToken, [welcomeMessage()]);
+      return;
+    }
+
+    if (event.type === 'postback') {
+      const params = new URLSearchParams(event.postback.data);
+      if (params.get('action') === 'list_more') {
+        const userId = event.source.userId;
+        const category = params.get('category') || null;
+        const startDate = params.get('start') || null;
+        const endDate = params.get('end') || null;
+        const offset = parseInt(params.get('offset'), 10) || 0;
+        const result = await getListPage(userId, category, startDate, endDate, offset);
+        const messages = resultToLineMessages({ type: 'list', ...result });
+        await replyMessages(event.replyToken, messages);
+      }
       return;
     }
 
