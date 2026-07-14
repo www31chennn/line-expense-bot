@@ -158,7 +158,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                     <span>{c.category}</span>
                     <span style={{ color: '#999' }}>
-                      {hasAmount ? `$${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}
+                      {hasAmount ? `${c.percentage}% · $${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}
                     </span>
                   </div>
                   <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
