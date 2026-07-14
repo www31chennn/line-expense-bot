@@ -102,6 +102,13 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   }
 
   if (result.type === 'set_category_budget') {
+    if (result.missingPercentage) {
+      return (
+        <div style={{ color: '#b8860b' }}>
+          ❓ 要改成多少%？{result.category ? `（${result.category}）` : ''}例如「修改{result.category || '飲食'}為30%」
+        </div>
+      );
+    }
     if (result.invalid) {
       return <div style={{ color: '#a33' }}>⚠️ 不是有效的分類名稱</div>;
     }
