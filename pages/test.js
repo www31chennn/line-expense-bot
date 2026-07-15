@@ -390,6 +390,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     return (
       <div style={{ color: '#b8860b' }}>
         ✏️ 已修改為：{r.date} {r.item} ${r.amount}（{r.category}）
+        {r.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{r.note}</div>}
       </div>
     );
   }
@@ -1078,6 +1079,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     return (
       <div style={{ color: '#b8860b' }}>
         ✏️ 已修改為：{r.date} {r.item} ${r.amount}（{r.category}）
+        {r.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{r.note}</div>}
       </div>
     );
   }
