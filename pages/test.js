@@ -92,11 +92,101 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   if (result.type === 'set_budget') {
     const b = result.budget;
     return (
-      <div style={{ color: '#0a7d32' }}>
-        ✅ 已設定：薪水 ${b.salary ?? '未設定'}
-        {b.savingsGoal != null && `，目標存 $${b.savingsGoal}`}
-        {b.spendingPercentage != null && `，最多花薪水的 ${b.spendingPercentage}%`}
-        {b.monthlyLimit != null && `，每月可花上限 $${b.monthlyLimit}`}
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>✅ 預算已設定</div>
+          {b.monthlyLimit != null && <div style={{ fontSize: 22, fontWeight: 'bold' }}>${b.monthlyLimit} / 月</div>}
+          <div style={{ fontSize: 12, opacity: 0.85 }}>
+            薪水 ${b.salary ?? '未設定'}
+            {b.savingsGoal != null && `，目標存 $${b.savingsGoal}`}
+            {b.spendingPercentage != null && `，最多花 ${b.spendingPercentage}%`}
+          </div>
+        </div>
+        {result.categories && result.categories.length > 0 && (
+          <div style={{ padding: '10px 14px' }}>
+            {result.categories.map((c) => {
+              const hasAmount = c.allocatedAmount != null;
+              const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
+              return (
+                <div key={c.category} style={{ marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span>{c.category}</span>
+                    <span style={{ color: '#999' }}>{c.percentage}%</span>
+                  </div>
+                  <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, pct)}%`,
+                        background: CATEGORY_COLORS[c.category],
+                        height: 6,
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (result.type === 'adjust_category_menu') {
+    return (
+      <div style={{ color: '#1a5cad' }}>
+        <div>🎯 要調整哪個分類的比例？</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          {Object.keys(CATEGORY_COLORS).map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => onSelectCategory(`調整${cat}比例`)}
+              style={{
+                padding: '6px 12px',
+                border: `1px solid ${CATEGORY_COLORS[cat]}`,
+                borderRadius: 16,
+                background: '#fff',
+                color: CATEGORY_COLORS[cat],
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'adjust_category_percent_step') {
+    const options = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+    return (
+      <div style={{ color: '#b8860b' }}>
+        <div>
+          📊 {result.category} 目前是 {result.current}%，要改成多少？
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          {options.map((pct) => (
+            <button
+              key={pct}
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onSelectCategory(`修改${result.category}為${pct}%`)}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
@@ -480,7 +570,16 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       <div style={{ color: '#1a5cad', fontSize: 14 }}>
         💰 跟我說「薪水50000，目標存15000」或「薪水50000，最多花70%」，我就會幫你算出每月可花上限。
         <br />
-        之後想改分類比例可以說「修改飲食為30%」。
+        之後想改分類比例可以說「修改飲食為30%」，或用按鈕調整。
+        <div style={{ marginTop: 6 }}>
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto' }}
+            onClick={() => onSelectCategory('調整分類比例')}
+          >
+            🎯 用按鈕調整比例
+          </button>
+        </div>
       </div>
     );
   }
