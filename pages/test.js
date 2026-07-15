@@ -723,6 +723,21 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           ⚙️ 設定預算
         </div>
         <div style={{ padding: '12px 14px' }}>
+          {result.budget && result.budget.monthlyLimit != null ? (
+            <div style={{ background: '#EAF2EF', borderRadius: 8, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: '#5B7F76', fontWeight: 'bold' }}>✅ 目前已設定</div>
+              <div style={{ fontSize: 13, marginTop: 2 }}>
+                薪水 ${result.budget.salary ?? '未設定'}
+                {result.budget.savingsGoal != null && `，目標存 $${result.budget.savingsGoal}`}
+                {result.budget.spendingPercentage != null && `，最多花 ${result.budget.spendingPercentage}%`}，每月上限 $
+                {result.budget.monthlyLimit}
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: '#FBF2E3', borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 13, color: '#B8860B' }}>
+              ⚠️ 尚未設定預算，請參考下方範例
+            </div>
+          )}
           <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>請提供薪水與存款目標，系統將自動計算每月可花費上限：</div>
           <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 6 }}>
             「薪水50000，目標存15000」
@@ -748,8 +763,25 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             >
               🎯 用按鈕調整比例
             </button>
+            {result.budget && result.budget.monthlyLimit != null && (
+              <button
+                type="button"
+                style={{ ...buttonStyle, width: 'auto', color: '#a33', borderColor: '#a33' }}
+                onClick={() => onSelectCategory('刪除預算')}
+              >
+                🗑️ 清除預算設定
+              </button>
+            )}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'delete_budget') {
+    return (
+      <div style={{ color: result.wasEmpty ? '#999' : '#0a7d32' }}>
+        {result.wasEmpty ? '目前沒有設定預算，不需要清除。' : '✅ 已清除薪水/目標/每月上限，分類比例配置不受影響。'}
       </div>
     );
   }
