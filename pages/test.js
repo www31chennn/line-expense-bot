@@ -55,6 +55,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
         {result.expenses.map((e, i) => (
           <div key={i} style={{ color: '#0a7d32' }}>
             ✅ {e.date} {e.item} ${e.amount}（{e.category}）
+            {e.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{e.note}</div>}
           </div>
         ))}
         {result.budgetStatus && (
