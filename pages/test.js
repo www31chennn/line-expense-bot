@@ -554,18 +554,51 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       ? '❓ 要編輯或刪除剛剛列出的哪一筆？'
       : `❓ 要編輯或刪除哪一筆？（顯示最近 ${result.candidates.length} 筆）`;
     return (
-      <div style={{ color: '#b8860b' }}>
-        <div>{headerText}</div>
-        <div style={{ marginTop: 4 }}>
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#B8860B', color: '#fff', padding: '10px 14px', fontSize: 13 }}>{headerText}</div>
+        <div style={{ padding: '6px 14px' }}>
           {result.candidates.map((r) => (
-            <button key={r.id} type="button" style={buttonStyle} onClick={() => onSelectIndex(r.index)}>
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => onSelectIndex(r.index)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 0',
+                border: 'none',
+                borderBottom: '1px solid #f0f0f0',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
               #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
             </button>
           ))}
           <button
             type="button"
-            style={{ ...buttonStyle, color: '#999' }}
             onClick={() => onSelectCategory('取消')}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '8px 0',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: 13,
+              color: '#999',
+            }}
           >
             ❌ 取消
           </button>
@@ -616,14 +649,32 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
 
   if (result.type === 'budget_help') {
     return (
-      <div style={{ color: '#1a5cad', fontSize: 14 }}>
-        💰 跟我說「薪水50000，目標存15000」或「薪水50000，最多花70%」，我就會幫你算出每月可花上限。
-        <br />
-        之後想改分類比例可以說「修改飲食為30%」，一次改多個也行，例如「飲食30%，交通10%」；或用按鈕調整。
-        <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
+          ⚙️ 設定預算
+        </div>
+        <div style={{ padding: '12px 14px' }}>
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>跟我說薪水跟目標，我就會算出每月可花上限：</div>
+          <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 6 }}>
+            「薪水50000，目標存15000」
+          </div>
+          <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 10 }}>
+            「薪水50000，最多花70%」
+          </div>
+          <div style={{ fontSize: 12, color: '#999' }}>
+            之後想改分類比例可以說「修改飲食為30%」，一次改多個也行，例如「飲食30%，交通10%」；或用下面按鈕調整。
+          </div>
           <button
             type="button"
-            style={{ ...buttonStyle, width: 'auto' }}
+            style={{ ...buttonStyle, width: 'auto', marginTop: 8 }}
             onClick={() => onSelectCategory('調整分類比例')}
           >
             🎯 用按鈕調整比例
@@ -670,20 +721,50 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   }
 
   if (result.type === 'help') {
+    const sections = [
+      { icon: '✏️', title: '記帳', desc: '直接打字，例如「午餐100元」，一次多筆也可以「午餐100，晚餐300」' },
+      { icon: '📋', title: '查詢', desc: '「明細」看指定範圍，或直接說「這個月花多少」看總額' },
+      {
+        icon: '💰',
+        title: '預算',
+        desc: '「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例。只改一個時其他分類會自動依比例滾動調整，總和永遠100%；也可以一次改多個',
+      },
+      { icon: '✏️🗑️', title: '編輯/刪除', desc: '「編輯記錄」選一筆來改或刪，過程中隨時可以打「取消」' },
+      { icon: '📊', title: '匯出', desc: '查完明細後，清單下方會有「匯出Excel」按鈕可以下載' },
+    ];
     return (
-      <div style={{ color: '#2b2b2b', fontSize: 14, lineHeight: 1.7 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>💡 使用說明</div>
-        ✏️ 記帳：直接打字，例如「午餐100元」，一次多筆也可以「午餐100，晚餐300」
-        <br />
-        📋 查詢：「明細」看指定範圍，或直接說「這個月花多少」看總額
-        <br />
-        💰 預算：「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例（只改一個時，其他分類會自動依原比例滾動調整，總和永遠是100%；也可以一次改多個，例如「飲食30%，交通10%」）
-        <br />
-        ✏️🗑️ 編輯/刪除：「編輯記錄」選一筆來改或刪，過程中隨時可以打「取消」
-        <br />
-        📊 匯出：查完明細後，清單下方會有「匯出Excel」按鈕可以下載
-        <br />
-        <span style={{ color: '#999' }}>需要選擇的時候我會跳出按鈕，點選就好，不用打字。</span>
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
+          💡 使用說明
+        </div>
+        <div style={{ padding: '12px 14px' }}>
+          {sections.map((s, i) => (
+            <div
+              key={s.title}
+              style={{
+                paddingTop: i === 0 ? 0 : 10,
+                marginTop: i === 0 ? 0 : 10,
+                borderTop: i === 0 ? 'none' : '1px solid #eee',
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 'bold', color: '#5B7F76' }}>
+                {s.icon} {s.title}
+              </div>
+              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{s.desc}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: '#999', marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee' }}>
+            需要選擇的時候我會跳出按鈕，點選就好，不用打字。
+          </div>
+        </div>
       </div>
     );
   }
