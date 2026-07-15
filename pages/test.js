@@ -202,6 +202,20 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     if (result.invalid) {
       return <div style={{ color: '#a33' }}>⚠️ 不是有效的分類名稱</div>;
     }
+    if (result.tooMuch) {
+      return (
+        <div style={{ color: '#a33' }}>
+          ⚠️ 你講的這幾個分類加起來已經 {result.specifiedSum}%，超過100%了，麻煩降低一點
+        </div>
+      );
+    }
+    if (result.allSpecifiedMismatch) {
+      return (
+        <div style={{ color: '#a33' }}>
+          ⚠️ 你一次講了全部7個分類，但加起來是 {result.specifiedSum}%，不是100%，因為沒有其他分類可以自動吸收差額，麻煩調整成剛好100%
+        </div>
+      );
+    }
     const entries = Object.entries(result.allocation);
     return (
       <div style={{ color: '#0a7d32' }}>
@@ -577,7 +591,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       <div style={{ color: '#1a5cad', fontSize: 14 }}>
         💰 跟我說「薪水50000，目標存15000」或「薪水50000，最多花70%」，我就會幫你算出每月可花上限。
         <br />
-        之後想改分類比例可以說「修改飲食為30%」，或用按鈕調整。
+        之後想改分類比例可以說「修改飲食為30%」，一次改多個也行，例如「飲食30%，交通10%」；或用按鈕調整。
         <div style={{ marginTop: 6 }}>
           <button
             type="button"
