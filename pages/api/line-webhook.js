@@ -50,7 +50,7 @@ async function handleEvent(event, baseUrl) {
       const params = new URLSearchParams(event.postback.data);
       const userId = event.source.userId;
 
-      if (params.get('action') === 'list_more') {
+      if (params.get('action') === 'list_more' || params.get('action') === 'list_force') {
         const category = params.get('category') || null;
         const startDate = params.get('start') || null;
         const endDate = params.get('end') || null;

@@ -415,6 +415,34 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'list_large') {
+    const exportHref = `/api/export?userId=test-user${result.category ? `&category=${encodeURIComponent(result.category)}` : ''}${result.startDate ? `&start=${result.startDate}` : ''}${result.endDate ? `&end=${result.endDate}` : ''}`;
+    return (
+      <div style={{ color: '#1a5cad' }}>
+        <div>
+          📊 符合條件的記錄有 {result.count} 筆，總計 ${result.total}
+        </div>
+        <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>資料量較大，建議直接匯出查看。</div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <a href={exportHref} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <button type="button" style={{ ...buttonStyle, width: 'auto', color: '#0a7d32', borderColor: '#0a7d32' }}>
+              📊 匯出Excel
+            </button>
+          </a>
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto' }}
+            onClick={() =>
+              onListMore({ category: result.category, startDate: result.startDate, endDate: result.endDate, offset: 0 })
+            }
+          >
+            還是要看清單
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (result.type === 'list') {
     if (result.records.length === 0) {
       return <div style={{ color: '#999' }}>📋 沒有符合條件的記錄</div>;
