@@ -217,14 +217,42 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       );
     }
     const entries = Object.entries(result.allocation);
+    const specifiedList = result.specified || [];
+    const autoAdjusted = entries.map(([cat]) => cat).filter((c) => !specifiedList.includes(c));
     return (
-      <div style={{ color: '#0a7d32' }}>
-        <div>✅ 已調整分類比例：</div>
-        <div style={{ fontSize: 14, marginTop: 4 }}>
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
+          <div style={{ fontWeight: 'bold' }}>✅ 分類比例已調整</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+            你設定：{specifiedList.join('、')}
+            {autoAdjusted.length > 0 && (
+              <>
+                <br />
+                自動依比例調整：{autoAdjusted.join('、')}
+              </>
+            )}
+          </div>
+        </div>
+        <div style={{ padding: '10px 14px' }}>
           {entries.map(([cat, pct]) => (
-            <div key={cat}>
-              {cat}：{pct}%
-              {result.monthlyLimit != null && ` （總額度 $${Math.round((result.monthlyLimit * pct) / 100)}）`}
+            <div key={cat} style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span>{cat}</span>
+                <span style={{ color: '#999' }}>
+                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
+                </span>
+              </div>
+              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                <div style={{ width: `${pct}%`, background: '#5B7F76', height: 6, borderRadius: 4 }} />
+              </div>
             </div>
           ))}
         </div>
@@ -649,7 +677,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
         <br />
         📋 查詢：「明細」看指定範圍，或直接說「這個月花多少」看總額
         <br />
-        💰 預算：「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例
+        💰 預算：「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例（只改一個時，其他分類會自動依原比例滾動調整，總和永遠是100%；也可以一次改多個，例如「飲食30%，交通10%」）
         <br />
         ✏️🗑️ 編輯/刪除：「編輯記錄」選一筆來改或刪，過程中隨時可以打「取消」
         <br />
