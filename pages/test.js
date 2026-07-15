@@ -50,6 +50,14 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   }
 
   if (result.type === 'record') {
+    const bs = result.budgetStatus;
+    const overallBad = bs && bs.warningLevel !== 'ok';
+    const hasCategoryWarnings = result.categoryWarnings && result.categoryWarnings.length > 0;
+    const remainingText = bs
+      ? bs.remaining >= 0
+        ? `本月還可以花 $${bs.remaining}`
+        : `本月已超支 $${Math.abs(bs.remaining)}`
+      : '';
     return (
       <div>
         {result.expenses.map((e, i) => (
@@ -58,32 +66,34 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             {e.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{e.note}</div>}
           </div>
         ))}
-        {result.budgetStatus && (
-          <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-            {budgetIcon(result.budgetStatus.warningLevel)} 本月已花 ${result.budgetStatus.spent} / $
-            {result.budgetStatus.monthlyLimit}（{result.budgetStatus.percentageUsed}%），
-            {result.budgetStatus.remaining >= 0
-              ? `還可以花 $${result.budgetStatus.remaining}`
-              : `已超支 $${Math.abs(result.budgetStatus.remaining)}`}
-          </div>
-        )}
-        {result.categoryWarnings && result.categoryWarnings.length > 0 && (
-          <div style={{ marginTop: 6 }}>
-            {result.categoryWarnings.map((c) => (
-              <div
-                key={c.category}
-                style={{
-                  fontSize: 13,
-                  color: c.warningLevel === 'over' ? '#a33' : '#b8860b',
-                  fontWeight: 'bold',
-                }}
-              >
-                {c.warningLevel === 'over' ? '🚨' : '⚠️'} {c.category}
-                {c.warningLevel === 'over'
-                  ? `已超支 $${Math.abs(c.remaining)}`
-                  : `已用 ${Math.round((c.spent / c.allocatedAmount) * 100)}%（剩 $${c.remaining}）`}
-              </div>
-            ))}
+        {hasCategoryWarnings &&
+          result.categoryWarnings.map((c) => (
+            <div
+              key={c.category}
+              style={{
+                fontSize: 13,
+                color: c.warningLevel === 'over' ? '#a33' : '#b8860b',
+                fontWeight: 'bold',
+                marginTop: 4,
+              }}
+            >
+              {c.warningLevel === 'over' ? '🚨' : '⚠️'} {c.category}
+              {c.warningLevel === 'over'
+                ? `已超支 $${Math.abs(c.remaining)}`
+                : `已用${Math.round((c.spent / c.allocatedAmount) * 100)}%`}
+              （{remainingText}）
+            </div>
+          ))}
+        {!hasCategoryWarnings && overallBad && (
+          <div
+            style={{
+              fontSize: 13,
+              color: bs.warningLevel === 'over' ? '#a33' : '#b8860b',
+              fontWeight: 'bold',
+              marginTop: 4,
+            }}
+          >
+            {bs.warningLevel === 'over' ? '🚨' : '⚠️'} {remainingText}
           </div>
         )}
       </div>
