@@ -39,7 +39,7 @@ async function replyMessages(replyToken, messages) {
   }
 }
 
-async function handleEvent(event) {
+async function handleEvent(event, baseUrl) {
   try {
     if (event.type === 'follow') {
       await replyMessages(event.replyToken, [welcomeMessage()]);
@@ -48,8 +48,9 @@ async function handleEvent(event) {
 
     if (event.type === 'postback') {
       const params = new URLSearchParams(event.postback.data);
+      const userId = event.source.userId;
+
       if (params.get('action') === 'list_more') {
-        const userId = event.source.userId;
         const category = params.get('category') || null;
         const startDate = params.get('start') || null;
         const endDate = params.get('end') || null;
@@ -57,6 +58,17 @@ async function handleEvent(event) {
         const result = await getListPage(userId, category, startDate, endDate, offset);
         const messages = resultToLineMessages({ type: 'list', ...result });
         await replyMessages(event.replyToken, messages);
+        return;
+      }
+
+      if (params.get('action') === 'export') {
+        const category = params.get('category') || '';
+        const start = params.get('start') || '';
+        const end = params.get('end') || '';
+        const query = new URLSearchParams({ userId, ...(category && { category }), ...(start && { start }), ...(end && { end }) });
+        const url = `${baseUrl}/api/export?${query.toString()}`;
+        await replyMessages(event.replyToken, [{ type: 'text', text: `📊 匯出完成，點連結下載 CSV：\n${url}` }]);
+        return;
       }
       return;
     }
@@ -92,8 +104,11 @@ export default async function handler(req, res) {
   const body = JSON.parse(rawBody.toString('utf8'));
   const events = body.events || [];
 
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const baseUrl = `https://${host}`;
+
   // 先回 200 讓 LINE 不要重送，事件用 Promise.all 平行處理
-  await Promise.all(events.map(handleEvent));
+  await Promise.all(events.map((event) => handleEvent(event, baseUrl)));
 
   return res.status(200).json({ ok: true });
 }

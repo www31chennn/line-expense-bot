@@ -251,10 +251,43 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'list_scope_prompt') {
+    const cat = result.category;
+    const catLabel = cat || '所有記錄';
+    const scopeText = (label) => (cat ? `列出${label}${cat}` : `列出${label}所有記錄`);
+    return (
+      <div style={{ color: '#b8860b' }}>
+        <div>❓ 要看哪個範圍的{catLabel}？</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('這個月'))}>
+            本月
+          </button>
+          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('上個月'))}>
+            上個月
+          </button>
+          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('今年'))}>
+            今年
+          </button>
+          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('去年'))}>
+            去年
+          </button>
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto' }}
+            onClick={() => onSelectCategory(cat ? `列出不限日期的${cat}` : '列出不限日期的所有記錄')}
+          >
+            不限日期
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (result.type === 'list') {
     if (result.records.length === 0) {
       return <div style={{ color: '#999' }}>📋 沒有符合條件的記錄</div>;
     }
+    const exportHref = `/api/export?userId=test-user${result.category ? `&category=${encodeURIComponent(result.category)}` : ''}${result.startDate ? `&start=${result.startDate}` : ''}${result.endDate ? `&end=${result.endDate}` : ''}`;
     return (
       <div style={{ color: '#1a5cad' }}>
         <div>
@@ -284,22 +317,29 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             </div>
           ))}
         </div>
-        {result.hasMore && (
-          <button
-            type="button"
-            style={{ ...buttonStyle, marginTop: 8, color: '#1a5cad', fontWeight: 'bold' }}
-            onClick={() =>
-              onListMore({
-                category: result.category,
-                startDate: result.startDate,
-                endDate: result.endDate,
-                offset: result.nextOffset,
-              })
-            }
-          >
-            看更多 ↓
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {result.hasMore && (
+            <button
+              type="button"
+              style={{ ...buttonStyle, width: 'auto', color: '#1a5cad', fontWeight: 'bold' }}
+              onClick={() =>
+                onListMore({
+                  category: result.category,
+                  startDate: result.startDate,
+                  endDate: result.endDate,
+                  offset: result.nextOffset,
+                })
+              }
+            >
+              看更多 ↓
+            </button>
+          )}
+          <a href={exportHref} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <button type="button" style={{ ...buttonStyle, width: 'auto', color: '#0a7d32', borderColor: '#0a7d32' }}>
+              📊 匯出這份Excel
+            </button>
+          </a>
+        </div>
       </div>
     );
   }
