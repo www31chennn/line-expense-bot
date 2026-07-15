@@ -544,6 +544,8 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     if (result.categories.length === 0) {
       return <div style={{ color: '#999' }}>🧾 {result.month} 還沒有任何記錄</div>;
     }
+    const ranked = [...result.categories].sort((a, b) => b.amount - a.amount);
+    const medals = ['🥇', '🥈', '🥉'];
     return (
       <div
         style={{
@@ -559,25 +561,32 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           <div style={{ fontSize: 22, fontWeight: 'bold' }}>${result.total}</div>
           <div style={{ fontSize: 12, opacity: 0.85 }}>共 {result.count} 筆</div>
         </div>
-        <div style={{ padding: '10px 14px' }}>
-          {result.categories.map((c) => (
-            <div key={c.category} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>{c.category}</span>
-                <span style={{ color: '#999' }}>
-                  ${c.amount}（{c.percentage}%）
-                </span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6, marginTop: 2 }}>
-                <div
-                  style={{
-                    width: `${c.percentage}%`,
-                    background: CATEGORY_COLORS[c.category] || '#9ca3af',
-                    height: 6,
-                    borderRadius: 4,
-                  }}
-                />
-              </div>
+        <div style={{ padding: '12px 14px' }}>
+          {/* 單一疊層長條：所有分類接在同一條裡 */}
+          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+            {ranked.map((c) => (
+              <div
+                key={c.category}
+                style={{ width: `${c.percentage}%`, background: CATEGORY_COLORS[c.category] || '#9ca3af' }}
+              />
+            ))}
+          </div>
+          {ranked.map((c, i) => (
+            <div key={c.category} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  background: CATEGORY_COLORS[c.category] || '#9ca3af',
+                  display: 'inline-block',
+                }}
+              />
+              <span style={{ flex: 1 }}>
+                {medals[i] || `${i + 1}.`} {c.category}
+              </span>
+              <span style={{ fontWeight: i < 3 ? 'bold' : 'normal' }}>${c.amount}</span>
+              <span style={{ color: '#999', width: 40, textAlign: 'right' }}>{c.percentage}%</span>
             </div>
           ))}
         </div>
