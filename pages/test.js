@@ -672,13 +672,56 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           <div style={{ fontSize: 12, color: '#999' }}>
             如需調整分類比例，可輸入「修改飲食為30%」，亦可一次調整多個分類，例如「飲食30%，交通10%」；或使用下方按鈕操作。
           </div>
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto', marginTop: 8 }}
-            onClick={() => onSelectCategory('調整分類比例')}
-          >
-            🎯 用按鈕調整比例
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onSelectCategory('目前比例')}
+            >
+              📊 目前比例
+            </button>
+            <button
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onSelectCategory('調整分類比例')}
+            >
+              🎯 用按鈕調整比例
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'view_category_allocation') {
+    const entries = Object.entries(result.allocation);
+    return (
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
+          📊 目前分類比例
+        </div>
+        <div style={{ padding: '10px 14px' }}>
+          {entries.map(([cat, pct]) => (
+            <div key={cat} style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span>{cat}</span>
+                <span style={{ color: '#999' }}>
+                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
+                </span>
+              </div>
+              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                <div style={{ width: `${pct}%`, background: '#5B7F76', height: 6, borderRadius: 4 }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
