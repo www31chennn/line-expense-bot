@@ -378,9 +378,12 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     if (result.candidates.length === 0) {
       return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
     }
+    const headerText = result.fromLastList
+      ? '❓ 要編輯或刪除剛剛列出的哪一筆？'
+      : `❓ 要編輯或刪除哪一筆？（顯示最近 ${result.candidates.length} 筆）`;
     return (
       <div style={{ color: '#b8860b' }}>
-        <div>❓ 要編輯或刪除哪一筆？（顯示最近 {result.candidates.length} 筆）</div>
+        <div>{headerText}</div>
         <div style={{ marginTop: 4 }}>
           {result.candidates.map((r) => (
             <button key={r.id} type="button" style={buttonStyle} onClick={() => onSelectIndex(r.index)}>
