@@ -44,7 +44,7 @@ function budgetIcon(level) {
 // onSelectCategory(category): 回答「這筆算哪一類」
 // onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
 // onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport) {
+function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart) {
   if (result.error) {
     return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
   }
@@ -574,6 +574,39 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'manage_scope_prompt') {
+    return (
+      <div style={{ color: '#b8860b' }}>
+        <div>❓ 要從哪份清單選要編輯/刪除的記錄？</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          {result.hasLastList && (
+            <button
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onManageStart('lastList', '最近查看的清單')}
+            >
+              📋 最近查看的清單
+            </button>
+          )}
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto' }}
+            onClick={() => onManageStart('recent10', '近10筆')}
+          >
+            近10筆
+          </button>
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto' }}
+            onClick={() => onManageStart('recent20', '近20筆')}
+          >
+            近20筆
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (result.type === 'manage_unspecified') {
     if (result.candidates.length === 0) {
       return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
@@ -1035,6 +1068,23 @@ export default function TestPage() {
     }
   }
 
+  async function sendManageStart(source, label) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manageSource: source, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: label, result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: label, result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = message;
@@ -1082,7 +1132,8 @@ export default function TestPage() {
                 (category) => sendMessage(category),
                 (params) => sendListMore(params),
                 (category) => sendMessage(`列出這個月${category}`),
-                (month) => sendReportMonth(month)
+                (month) => sendReportMonth(month),
+                (source, label) => sendManageStart(source, label)
               )}
             </div>
           </div>

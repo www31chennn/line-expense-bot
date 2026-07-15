@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { handleMessage, getListPage, getMonthlyReportForMonth } from '../../lib/parseExpense';
+import { handleMessage, getListPage, getMonthlyReportForMonth, startManageFlow } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
 
 // 要驗證簽章必須拿到「原始」request body，所以關掉 Next.js 內建的自動 JSON 解析
@@ -75,6 +75,14 @@ async function handleEvent(event, baseUrl) {
         const month = params.get('month');
         const result = await getMonthlyReportForMonth(userId, month, event.timestamp);
         const messages = resultToLineMessages({ type: 'monthly_report', ...result });
+        await replyMessages(event.replyToken, messages);
+        return;
+      }
+
+      if (params.get('action') === 'manage_start') {
+        const source = params.get('source');
+        const result = await startManageFlow(userId, source);
+        const messages = resultToLineMessages(result);
         await replyMessages(event.replyToken, messages);
         return;
       }
