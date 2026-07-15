@@ -1037,6 +1037,39 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'delete_batch') {
+    return (
+      <div>
+        {result.deleted.length > 0 && (
+          <div style={{ color: '#a33' }}>
+            🗑️ 已刪除 {result.deleted.length} 筆：
+            {result.deleted.map((r, i) => (
+              <div key={i} style={{ marginLeft: 16 }}>
+                {r.date} {r.item} ${r.amount}（{r.category}）
+              </div>
+            ))}
+          </div>
+        )}
+        {result.notFound.length > 0 && (
+          <div style={{ color: '#999', marginTop: 4 }}>
+            ⚠️ 找不到符合的：{result.notFound.map((t) => t.item || t.date || '?').join('、')}
+          </div>
+        )}
+        {result.ambiguousTargets.length > 0 &&
+          result.ambiguousTargets.map(({ target, candidates }, i) => (
+            <div key={i} style={{ color: '#b8860b', marginTop: 4 }}>
+              ❓「{target.item}」比對到多筆，這次跳過，請用更精確的方式指定（例如加上日期）：
+              {candidates.map((c) => (
+                <div key={c.id} style={{ marginLeft: 16 }}>
+                  #{c.index} {c.date} {c.item} ${c.amount}（{c.category}）
+                </div>
+              ))}
+            </div>
+          ))}
+      </div>
+    );
+  }
+
   if (result.type === 'modify_specific') {
     if (result.unchanged) {
       return <div style={{ color: '#a33' }}>⚠️ 沒有偵測到要修改的內容</div>;
