@@ -25,10 +25,7 @@ const richMenuBody = {
     { bounds: { x: 1667, y: 0, width: 833, height: 843 }, action: { type: 'message', text: '設定預算' } },
     { bounds: { x: 0, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '我要編輯' } },
     { bounds: { x: 833, y: 843, width: 834, height: 843 }, action: { type: 'message', text: '使用說明' } },
-    {
-      bounds: { x: 1667, y: 843, width: 833, height: 843 },
-      action: { type: 'uri', uri: 'https://line-expense-bot-plum.vercel.app/report' },
-    },
+    { bounds: { x: 1667, y: 843, width: 833, height: 843 }, action: { type: 'message', text: '月報表' } },
   ],
 };
 

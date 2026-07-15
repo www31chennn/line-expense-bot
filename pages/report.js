@@ -74,7 +74,7 @@ export default function ReportPage() {
             <div style={{ color: '#999' }}>這個月還沒有任何記錄</div>
           ) : (
             <>
-              <div style={{ width: '100%', height: 280 }}>
+              <div style={{ width: '100%', height: 320 }}>
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie
@@ -82,16 +82,15 @@ export default function ReportPage() {
                       dataKey="amount"
                       nameKey="category"
                       cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      label={({ category, percentage }) => `${category} ${percentage}%`}
+                      cy="45%"
+                      outerRadius={90}
                     >
                       {report.categories.map((entry) => (
                         <Cell key={entry.category} fill={COLORS[entry.category] || '#9ca3af'} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => `$${value}`} />
-                    <Legend />
+                    <Tooltip formatter={(value, name) => [`$${value}`, name]} />
+                    <Legend layout="horizontal" verticalAlign="bottom" wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

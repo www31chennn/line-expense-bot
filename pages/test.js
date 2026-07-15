@@ -540,6 +540,51 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'monthly_report') {
+    if (result.categories.length === 0) {
+      return <div style={{ color: '#999' }}>🧾 {result.month} 還沒有任何記錄</div>;
+    }
+    return (
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>🧾 {result.month} 消費報表</div>
+          <div style={{ fontSize: 22, fontWeight: 'bold' }}>${result.total}</div>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>共 {result.count} 筆</div>
+        </div>
+        <div style={{ padding: '10px 14px' }}>
+          {result.categories.map((c) => (
+            <div key={c.category} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span>{c.category}</span>
+                <span style={{ color: '#999' }}>
+                  ${c.amount}（{c.percentage}%）
+                </span>
+              </div>
+              <div style={{ background: '#eee', borderRadius: 4, height: 6, marginTop: 2 }}>
+                <div
+                  style={{
+                    width: `${c.percentage}%`,
+                    background: CATEGORY_COLORS[c.category] || '#9ca3af',
+                    height: 6,
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (result.type === 'awaiting_value') {
     const r = result.record;
     return (
@@ -649,13 +694,14 @@ export default function TestPage() {
     { label: '⚙️ 設定預算', text: '設定預算' },
     { label: '✏️ 編輯記錄', text: '我要編輯' },
     { label: '💡 使用說明', text: '使用說明' },
+    { label: '🧾 月報表', text: '月報表' },
   ];
 
   return (
     <div style={{ maxWidth: 480, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 16px 100px' }}>
       <h2>記帳測試（本機用，不會出現在正式 LINE 畫面）</h2>
       <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>
-        右下角是常駐選單（LINE 上會做成 Rich Menu），📊 完整分類報表在 <a href="/report">/report</a>
+        右下角是常駐選單（LINE 上會做成 Rich Menu），月報表跟明細都是卡片式呈現
       </div>
       <div
         style={{
@@ -735,23 +781,6 @@ export default function TestPage() {
             {a.label}
           </button>
         ))}
-        <a href="/report" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-          <button
-            type="button"
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              background: '#f7f7f7',
-              cursor: 'pointer',
-              fontSize: 14,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            📊 網頁報表
-          </button>
-        </a>
       </div>
     </div>
   );
