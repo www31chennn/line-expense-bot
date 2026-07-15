@@ -520,6 +520,13 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
               #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
             </button>
           ))}
+          <button
+            type="button"
+            style={{ ...buttonStyle, color: '#999' }}
+            onClick={() => onSelectCategory('取消')}
+          >
+            ❌ 取消
+          </button>
         </div>
       </div>
     );
@@ -728,6 +735,13 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
               #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
             </button>
           ))}
+          <button
+            type="button"
+            style={{ ...buttonStyle, color: '#999' }}
+            onClick={() => onSelectCategory('取消')}
+          >
+            ❌ 取消
+          </button>
         </div>
       </div>
     );
