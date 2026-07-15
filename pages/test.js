@@ -485,6 +485,61 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
+  if (result.type === 'list_menu') {
+    const ranges = [
+      { label: '本日', text: '列出今天所有記錄' },
+      { label: '本週', text: '列出這週所有記錄' },
+      { label: '本月', text: '列出這個月所有記錄' },
+      { label: '今年', text: '列出今年所有記錄' },
+      { label: '去年', text: '列出去年所有記錄' },
+      { label: '其他區間', text: '自訂區間' },
+    ];
+    return (
+      <div style={{ color: '#1a5cad' }}>
+        <div>📋 要看哪個範圍的明細？</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          {ranges.map((r) => (
+            <button
+              key={r.label}
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onSelectCategory(r.text)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'custom_range_help') {
+    return (
+      <div style={{ color: '#1a5cad', fontSize: 14 }}>
+        📅 跟我說想查的區間就好，例如「列出7/1到7/15的記錄」「列出3月的飲食」，日期我會自動幫你抓。
+      </div>
+    );
+  }
+
+  if (result.type === 'help') {
+    return (
+      <div style={{ color: '#2b2b2b', fontSize: 14, lineHeight: 1.7 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>💡 使用說明</div>
+        ✏️ 記帳：直接打字，例如「午餐100元」，一次多筆也可以「午餐100，晚餐300」
+        <br />
+        📋 查詢：「明細」看指定範圍，或直接說「這個月花多少」看總額
+        <br />
+        💰 預算：「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例
+        <br />
+        ✏️🗑️ 編輯/刪除：「編輯記錄」選一筆來改或刪，過程中隨時可以打「取消」
+        <br />
+        📊 匯出：查完明細後，清單下方會有「匯出Excel」按鈕可以下載
+        <br />
+        <span style={{ color: '#999' }}>需要選擇的時候我會跳出按鈕，點選就好，不用打字。</span>
+      </div>
+    );
+  }
+
   if (result.type === 'awaiting_value') {
     const r = result.record;
     return (
@@ -589,12 +644,11 @@ export default function TestPage() {
   }
 
   const quickActions = [
-    { label: '📅 今日明細', text: '列出今天所有記錄' },
-    { label: '🗓️ 本週明細', text: '列出這週所有記錄' },
-    { label: '📆 本月明細', text: '列出這個月所有記錄' },
+    { label: '📋 明細', text: '明細' },
     { label: '💰 預算狀態', text: '這個月還剩多少可以花' },
     { label: '⚙️ 設定預算', text: '設定預算' },
     { label: '✏️ 編輯記錄', text: '我要編輯' },
+    { label: '💡 使用說明', text: '使用說明' },
   ];
 
   return (
@@ -681,6 +735,23 @@ export default function TestPage() {
             {a.label}
           </button>
         ))}
+        <a href="/report" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+          <button
+            type="button"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: 8,
+              background: '#f7f7f7',
+              cursor: 'pointer',
+              fontSize: 14,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            📊 網頁報表
+          </button>
+        </a>
       </div>
     </div>
   );
