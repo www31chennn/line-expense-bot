@@ -1,17 +1,22 @@
-import { handleMessage, getListPage } from '../../lib/parseExpense';
+import { handleMessage, getListPage, getMonthlyReportForMonth } from '../../lib/parseExpense';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, userId, listMore } = req.body;
+  const { message, userId, listMore, reportMonth } = req.body;
   const uid = userId || 'test-user';
 
   try {
     if (listMore) {
       const result = await getListPage(uid, listMore.category, listMore.startDate, listMore.endDate, listMore.offset);
       return res.status(200).json({ type: 'list', ...result });
+    }
+
+    if (reportMonth) {
+      const result = await getMonthlyReportForMonth(uid, reportMonth, Date.now());
+      return res.status(200).json({ type: 'monthly_report', ...result });
     }
 
     if (!message || typeof message !== 'string') {

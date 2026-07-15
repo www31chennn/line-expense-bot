@@ -44,7 +44,7 @@ function budgetIcon(level) {
 // onSelectCategory(category): 回答「這筆算哪一類」
 // onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
 // onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail) {
+function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport) {
   if (result.error) {
     return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
   }
@@ -689,6 +689,20 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             </div>
           ))}
         </div>
+        {result.recentMonths && result.recentMonths.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 14px 12px' }}>
+            {result.recentMonths.map((m) => (
+              <button
+                key={m}
+                type="button"
+                style={{ ...buttonStyle, width: 'auto', fontSize: 12 }}
+                onClick={() => onMonthlyReport(m)}
+              >
+                {parseInt(m.split('-')[1], 10)}月
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -789,6 +803,23 @@ export default function TestPage() {
     }
   }
 
+  async function sendReportMonth(month) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportMonth: month, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: `${month} 報表`, result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: `${month} 報表`, result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = message;
@@ -835,7 +866,8 @@ export default function TestPage() {
                 (index) => sendMessage(`刪除第${index}筆`),
                 (category) => sendMessage(category),
                 (params) => sendListMore(params),
-                (category) => sendMessage(`列出這個月${category}`)
+                (category) => sendMessage(`列出這個月${category}`),
+                (month) => sendReportMonth(month)
               )}
             </div>
           </div>
