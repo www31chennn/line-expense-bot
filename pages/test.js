@@ -662,7 +662,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           ⚙️ 設定預算
         </div>
         <div style={{ padding: '12px 14px' }}>
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>跟我說薪水跟目標，我就會算出每月可花上限：</div>
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>請提供薪水與存款目標，系統將自動計算每月可花費上限：</div>
           <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 6 }}>
             「薪水50000，目標存15000」
           </div>
@@ -670,7 +670,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             「薪水50000，最多花70%」
           </div>
           <div style={{ fontSize: 12, color: '#999' }}>
-            之後想改分類比例可以說「修改飲食為30%」，一次改多個也行，例如「飲食30%，交通10%」；或用下面按鈕調整。
+            如需調整分類比例，可輸入「修改飲食為30%」，亦可一次調整多個分類，例如「飲食30%，交通10%」；或使用下方按鈕操作。
           </div>
           <button
             type="button"
@@ -721,16 +721,17 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   }
 
   if (result.type === 'help') {
-    const sections = [
-      { icon: '✏️', title: '記帳', desc: '直接打字，例如「午餐100元」，一次多筆也可以「午餐100，晚餐300」' },
-      { icon: '📋', title: '查詢', desc: '「明細」看指定範圍，或直接說「這個月花多少」看總額' },
+    const menuSections = [
+      { icon: '📋', title: '明細', desc: '查詢指定範圍的消費紀錄。', example: '範例：「明細」「列出這個月飲食」' },
+      { icon: '💰', title: '預算狀態', desc: '查看本月已花金額、剩餘額度與各分類佔比。', example: '範例：「這個月還剩多少」' },
       {
-        icon: '💰',
-        title: '預算',
-        desc: '「設定預算」設定薪水/目標，「修改飲食為30%」調整分類比例。只改一個時其他分類會自動依比例滾動調整，總和永遠100%；也可以一次改多個',
+        icon: '⚙️',
+        title: '設定預算',
+        desc: '設定薪水與存款目標，或調整分類比例（未指定的分類會依原比例自動調整）。',
+        example: '範例：「薪水50000，目標存15000」「修改飲食為30%」',
       },
-      { icon: '✏️🗑️', title: '編輯/刪除', desc: '「編輯記錄」選一筆來改或刪，過程中隨時可以打「取消」' },
-      { icon: '📊', title: '匯出', desc: '查完明細後，清單下方會有「匯出Excel」按鈕可以下載' },
+      { icon: '✏️', title: '編輯記錄', desc: '選擇一筆記錄進行修改或刪除。', example: '範例：「編輯記錄」' },
+      { icon: '🧾', title: '月報表', desc: '查看本月消費分佈，可切換至過去數月。', example: '範例：「月報表」「上個月報表」' },
     ];
     return (
       <div
@@ -746,7 +747,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           💡 使用說明
         </div>
         <div style={{ padding: '12px 14px' }}>
-          {sections.map((s, i) => (
+          {menuSections.map((s, i) => (
             <div
               key={s.title}
               style={{
@@ -759,10 +760,16 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
                 {s.icon} {s.title}
               </div>
               <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{s.desc}</div>
+              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{s.example}</div>
             </div>
           ))}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee' }}>
+            <div style={{ fontSize: 13, fontWeight: 'bold', color: '#5B7F76' }}>✏️ 記帳</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>輸入消費內容即可記錄，可一次輸入多筆。</div>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>範例：「午餐100元」「午餐100元，晚餐300元」</div>
+          </div>
           <div style={{ fontSize: 11, color: '#999', marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee' }}>
-            需要選擇的時候我會跳出按鈕，點選就好，不用打字。
+            需要選擇時會提供按鈕操作；查詢明細後可使用「匯出Excel」下載記錄。
           </div>
         </div>
       </div>
