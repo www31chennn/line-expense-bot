@@ -822,6 +822,13 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
             >
               🎯 用按鈕調整比例
             </button>
+            <button
+              type="button"
+              style={{ ...buttonStyle, width: 'auto' }}
+              onClick={() => onSelectCategory('恢復預設比例')}
+            >
+              🔄 恢復預設比例
+            </button>
             {result.budget && result.budget.monthlyLimit != null && (
               <button
                 type="button"
@@ -871,6 +878,47 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
               </div>
               <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
                 <div style={{ width: `${pct}%`, background: '#5B7F76', height: 6, borderRadius: 4 }} />
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto', marginTop: 8 }}
+            onClick={() => onSelectCategory('恢復預設比例')}
+          >
+            🔄 恢復預設比例
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (result.type === 'category_allocation_reset') {
+    const entries = Object.entries(result.allocation);
+    return (
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxWidth: 320,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <div style={{ background: '#0a7d32', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
+          ✅ 已恢復預設分類比例
+        </div>
+        <div style={{ padding: '10px 14px' }}>
+          {entries.map(([cat, pct]) => (
+            <div key={cat} style={{ marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span>{cat}</span>
+                <span style={{ color: '#999' }}>
+                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
+                </span>
+              </div>
+              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
+                <div style={{ width: `${pct}%`, background: '#0a7d32', height: 6, borderRadius: 4 }} />
               </div>
             </div>
           ))}
