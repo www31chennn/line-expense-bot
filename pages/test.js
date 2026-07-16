@@ -126,7 +126,11 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           <div style={{ padding: '10px 14px' }}>
             {result.categories.map((c) => {
               const hasAmount = c.allocatedAmount != null;
-              const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
+              const pct = hasAmount
+                ? c.allocatedAmount > 0
+                  ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100))
+                  : 0
+                : c.percentage;
               return (
                 <div key={c.category} style={{ marginBottom: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
@@ -294,7 +298,11 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           <div>
             {result.categories.map((c) => {
               const hasAmount = c.allocatedAmount != null;
-              const pct = hasAmount ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100)) : c.percentage;
+              const pct = hasAmount
+                ? c.allocatedAmount > 0
+                  ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100))
+                  : 0
+                : c.percentage;
               const barColor =
                 c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : CATEGORY_COLORS[c.category];
               return (
