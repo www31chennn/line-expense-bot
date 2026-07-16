@@ -15,6 +15,7 @@ const CATEGORY_SLUG = {
   娛樂: 'entertainment',
   醫療: 'medical',
   居家: 'home',
+  固定支出: 'fixed',
   其他: 'other',
 };
 

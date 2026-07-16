@@ -7,6 +7,7 @@ const CATEGORY_LABELS = {
   娛樂: '🎮 娛樂',
   醫療: '🏥 醫療',
   居家: '🏠 居家',
+  固定支出: '📌 固定支出',
   其他: '📦 其他',
 };
 
@@ -610,39 +611,6 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
-  if (result.type === 'manage_scope_prompt') {
-    return (
-      <div style={{ color: '#b8860b' }}>
-        <div>❓ 要從哪份清單選要編輯/刪除的記錄？</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {result.hasLastList && (
-            <button
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onManageStart('lastList', '最近查看的清單')}
-            >
-              📋 最近查看的清單
-            </button>
-          )}
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto' }}
-            onClick={() => onManageStart('recent10', '近10筆')}
-          >
-            近10筆
-          </button>
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto' }}
-            onClick={() => onManageStart('recent20', '近20筆')}
-          >
-            近20筆
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (result.type === 'manage_unspecified') {
     if (result.candidates.length === 0) {
       return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
@@ -650,6 +618,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     const headerText = result.fromLastList
       ? '📋 剛剛列出的清單（點列編輯／點🗑️刪除）'
       : `📋 最近 ${result.candidates.length} 筆（點列編輯／點🗑️刪除）`;
+    const switchAction = result.fromLastList ? { label: '🔁 改用近20筆', source: 'recent20' } : null;
     return (
       <div
         style={{
@@ -722,6 +691,25 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
           >
             ❌ 取消
           </button>
+          {switchAction && (
+            <button
+              type="button"
+              onClick={() => onManageStart(switchAction.source, switchAction.label)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 0',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: '#1a5cad',
+              }}
+            >
+              {switchAction.label}
+            </button>
+          )}
         </div>
       </div>
     );
