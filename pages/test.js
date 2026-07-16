@@ -30,6 +30,7 @@ const CATEGORY_COLORS = {
   娛樂: '#a78bfa',
   醫療: '#34d399',
   居家: '#fb923c',
+  固定支出: '#5B7F76',
   其他: '#9ca3af',
 };
 
@@ -223,7 +224,7 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     if (result.allSpecifiedMismatch) {
       return (
         <div style={{ color: '#a33' }}>
-          ⚠️ 你一次講了全部7個分類，但加起來是 {result.specifiedSum}%，不是100%，因為沒有其他分類可以自動吸收差額，麻煩調整成剛好100%
+          ⚠️ 你一次講了全部8個分類，但加起來是 {result.specifiedSum}%，不是100%，因為沒有其他分類可以自動吸收差額，麻煩調整成剛好100%
         </div>
       );
     }
