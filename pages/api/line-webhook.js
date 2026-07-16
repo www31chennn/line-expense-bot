@@ -6,6 +6,7 @@ import {
   startManageFlow,
   startEditRecord,
   deleteRecordDirect,
+  startConfirmDelete,
 } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
 
@@ -97,6 +98,13 @@ async function handleEvent(event, baseUrl) {
       if (params.get('action') === 'edit_record') {
         const id = params.get('id');
         const result = await startEditRecord(userId, id);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'confirm_delete') {
+        const id = params.get('id');
+        const result = await startConfirmDelete(userId, id);
         await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }

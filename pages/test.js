@@ -44,7 +44,7 @@ function budgetIcon(level) {
 // onSelectCategory(category): 回答「這筆算哪一類」
 // onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
 // onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart, onEditRecord, onDeleteRecordDirect) {
+function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart, onEditRecord, onDeleteRecordDirect, onConfirmedDelete) {
   if (result.error) {
     return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
   }
@@ -1097,6 +1097,50 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     return <div style={{ color: '#a33' }}>⚠️ 沒有找到符合的記錄</div>;
   }
 
+  if (result.type === 'confirm_delete') {
+    const r = result.record;
+    return (
+      <div style={{ color: '#a33' }}>
+        {result.invalid && <div style={{ fontSize: 13, marginBottom: 4 }}>⚠️ 看不懂，請點下面按鈕：</div>}
+        <div>
+          🗑️ 確定要刪除這筆嗎？
+          <br />
+          {r.date} {r.item} ${r.amount}（{r.category}）
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button
+            type="button"
+            onClick={() => onConfirmedDelete(r.id, `${r.date} ${r.item}`)}
+            style={{
+              padding: '6px 14px',
+              border: '1px solid #a33',
+              borderRadius: 16,
+              background: '#fff',
+              color: '#a33',
+              cursor: 'pointer',
+            }}
+          >
+            🗑️ 確定刪除
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectCategory('取消')}
+            style={{
+              padding: '6px 14px',
+              border: '1px solid #999',
+              borderRadius: 16,
+              background: '#fff',
+              color: '#999',
+              cursor: 'pointer',
+            }}
+          >
+            ❌ 取消
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (result.type === 'delete_specific') {
     const d = result.deleted;
     return (
@@ -1265,6 +1309,23 @@ export default function TestPage() {
     }
   }
 
+  async function sendConfirmDelete(id, label) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDeleteId: id, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = message;
@@ -1315,6 +1376,7 @@ export default function TestPage() {
                 (month) => sendReportMonth(month),
                 (source, label) => sendManageStart(source, label),
                 (id, label) => sendEditRecord(id, label),
+                (id, label) => sendConfirmDelete(id, label),
                 (id, label) => sendDeleteRecord(id, label)
               )}
             </div>

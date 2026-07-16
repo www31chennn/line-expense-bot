@@ -5,6 +5,7 @@ import {
   startManageFlow,
   startEditRecord,
   deleteRecordDirect,
+  startConfirmDelete,
 } from '../../lib/parseExpense';
 
 export default async function handler(req, res) {
@@ -12,7 +13,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, userId, listMore, reportMonth, manageSource, editRecordId, deleteRecordId } = req.body;
+  const { message, userId, listMore, reportMonth, manageSource, editRecordId, deleteRecordId, confirmDeleteId } = req.body;
   const uid = userId || 'test-user';
 
   try {
@@ -33,6 +34,11 @@ export default async function handler(req, res) {
 
     if (editRecordId) {
       const result = await startEditRecord(uid, editRecordId);
+      return res.status(200).json(result);
+    }
+
+    if (confirmDeleteId) {
+      const result = await startConfirmDelete(uid, confirmDeleteId);
       return res.status(200).json(result);
     }
 
