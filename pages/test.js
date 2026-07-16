@@ -44,7 +44,7 @@ function budgetIcon(level) {
 // onSelectCategory(category): 回答「這筆算哪一類」
 // onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
 // onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart) {
+function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart, onEditRecord, onDeleteRecordDirect) {
   if (result.error) {
     return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
   }
@@ -468,12 +468,27 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
         <div style={{ marginTop: 4, fontSize: 14 }}>
           {result.records.map((r) => (
             <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <span>
+              <span style={{ flex: 1 }}>
                 #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
               </span>
               <button
                 type="button"
-                onClick={() => onDeleteIndex(r.index)}
+                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
+                style={{
+                  border: '1px solid #b8860b',
+                  background: '#fffaf0',
+                  color: '#b8860b',
+                  borderRadius: 4,
+                  padding: '2px 8px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                ✏️ 編輯
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
                 style={{
                   border: '1px solid #e0a0a0',
                   background: '#fff5f5',
@@ -624,8 +639,8 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
     }
     const headerText = result.fromLastList
-      ? '❓ 要編輯或刪除剛剛列出的哪一筆？'
-      : `❓ 要編輯或刪除哪一筆？（顯示最近 ${result.candidates.length} 筆）`;
+      ? '📋 剛剛列出的清單（點列編輯／點🗑️刪除）'
+      : `📋 最近 ${result.candidates.length} 筆（點列編輯／點🗑️刪除）`;
     return (
       <div
         style={{
@@ -639,24 +654,47 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
         <div style={{ background: '#B8860B', color: '#fff', padding: '10px 14px', fontSize: 13 }}>{headerText}</div>
         <div style={{ padding: '6px 14px' }}>
           {result.candidates.map((r) => (
-            <button
+            <div
               key={r.id}
-              type="button"
-              onClick={() => onSelectIndex(r.index)}
               style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
                 padding: '8px 0',
-                border: 'none',
                 borderBottom: '1px solid #f0f0f0',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
               }}
             >
-              #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
-            </button>
+              <button
+                type="button"
+                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
+                style={{
+                  flex: 1,
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 13,
+                }}
+              >
+                #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
+                style={{
+                  border: '1px solid #e0a0a0',
+                  background: '#fff5f5',
+                  color: '#a33',
+                  borderRadius: 4,
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                🗑️
+              </button>
+            </div>
           ))}
           <button
             type="button"
@@ -1006,16 +1044,37 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
   if (result.type === 'ambiguous') {
     return (
       <div style={{ color: '#b8860b' }}>
-        <div>⚠️ 找到多筆符合的記錄，請選要{result.action === 'delete' ? '刪除' : '修改'}哪一筆：</div>
+        <div>⚠️ 找到多筆符合的記錄（點列編輯／點🗑️刪除）：</div>
         <div style={{ marginTop: 4 }}>
           {result.candidates.map((r) => (
-            <button key={r.id} type="button" style={buttonStyle} onClick={() => onSelectIndex(r.index)}>
-              #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
-            </button>
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
+                style={{ ...buttonStyle, width: 'auto', flex: 1, textAlign: 'left' }}
+              >
+                #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
+                style={{
+                  border: '1px solid #e0a0a0',
+                  background: '#fff5f5',
+                  color: '#a33',
+                  borderRadius: 4,
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                🗑️
+              </button>
+            </div>
           ))}
           <button
             type="button"
-            style={{ ...buttonStyle, color: '#999' }}
+            style={{ ...buttonStyle, color: '#999', marginTop: 4 }}
             onClick={() => onSelectCategory('取消')}
           >
             ❌ 取消
@@ -1163,6 +1222,40 @@ export default function TestPage() {
     }
   }
 
+  async function sendEditRecord(id, label) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ editRecordId: id, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: `編輯 ${label}`, result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: `編輯 ${label}`, result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendDeleteRecord(id, label) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteRecordId: id, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: data }]);
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: { error: err.message } }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = message;
@@ -1211,7 +1304,9 @@ export default function TestPage() {
                 (params) => sendListMore(params),
                 (category) => sendMessage(`列出這個月${category}`),
                 (month) => sendReportMonth(month),
-                (source, label) => sendManageStart(source, label)
+                (source, label) => sendManageStart(source, label),
+                (id, label) => sendEditRecord(id, label),
+                (id, label) => sendDeleteRecord(id, label)
               )}
             </div>
           </div>

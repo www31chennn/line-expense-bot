@@ -1,5 +1,12 @@
 import crypto from 'crypto';
-import { handleMessage, getListPage, getMonthlyReportForMonth, startManageFlow } from '../../lib/parseExpense';
+import {
+  handleMessage,
+  getListPage,
+  getMonthlyReportForMonth,
+  startManageFlow,
+  startEditRecord,
+  deleteRecordDirect,
+} from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
 
 // 要驗證簽章必須拿到「原始」request body，所以關掉 Next.js 內建的自動 JSON 解析
@@ -84,6 +91,20 @@ async function handleEvent(event, baseUrl) {
         const result = await startManageFlow(userId, source);
         const messages = resultToLineMessages(result);
         await replyMessages(event.replyToken, messages);
+        return;
+      }
+
+      if (params.get('action') === 'edit_record') {
+        const id = params.get('id');
+        const result = await startEditRecord(userId, id);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'delete_record') {
+        const id = params.get('id');
+        const result = await deleteRecordDirect(userId, id);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }
       return;
