@@ -1036,7 +1036,16 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
       <div style={{ color: '#b8860b' }}>
         ✏️ 選好了：{r.date} {r.item} ${r.amount}（{r.category}）
         <br />
-        要改成什麼？（例如「80元」「改成晚餐」直接打字回覆）
+        要改成什麼？
+        <div style={{ marginTop: 6 }}>
+          <button
+            type="button"
+            style={{ ...buttonStyle, width: 'auto', color: '#999' }}
+            onClick={() => onSelectCategory('取消')}
+          >
+            ❌ 取消
+          </button>
+        </div>
       </div>
     );
   }
