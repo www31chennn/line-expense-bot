@@ -7,6 +7,11 @@ import {
   startEditRecord,
   deleteRecordDirect,
   startConfirmDelete,
+  toggleCategoryEnabled,
+  startCategoryActionMenu,
+  startCategoryEmojiEdit,
+  startCategoryRename,
+  getCategorySettingsMore,
 } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
 
@@ -112,6 +117,41 @@ async function handleEvent(event, baseUrl) {
       if (params.get('action') === 'delete_record') {
         const id = params.get('id');
         const result = await deleteRecordDirect(userId, id);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'toggle_category') {
+        const name = params.get('name');
+        const result = await toggleCategoryEnabled(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'category_menu') {
+        const name = params.get('name');
+        const result = await startCategoryActionMenu(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'start_category_emoji') {
+        const name = params.get('name');
+        const result = await startCategoryEmojiEdit(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'start_category_rename') {
+        const name = params.get('name');
+        const result = await startCategoryRename(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'category_settings_more') {
+        const offset = parseInt(params.get('offset'), 10) || 0;
+        const result = await getCategorySettingsMore(userId, offset);
         await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }

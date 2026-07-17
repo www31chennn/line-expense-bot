@@ -1,1211 +1,177 @@
 import { useState } from 'react';
+import { resultToLineMessages } from '../lib/lineFormat';
 
-const CATEGORY_LABELS = {
-  飲食: '🍜 飲食',
-  交通: '🚗 交通',
-  購物: '🛍️ 購物',
-  娛樂: '🎮 娛樂',
-  醫療: '🏥 醫療',
-  居家: '🏠 居家',
-  固定支出: '📌 固定支出',
-  其他: '📦 其他',
-};
+// LINE Flex Message 的 size/spacing 是語意 token（xs/sm/md...），不是像素值，
+// 這裡對應成近似的 px，讓測試頁面看起來盡量貼近實際 LINE 畫面
+const SIZE_PX = { xxs: 10, xs: 11, sm: 13, md: 14, lg: 16, xl: 19, xxl: 22 };
+const SPACE_PX = { none: 0, xs: 4, sm: 6, md: 8, lg: 12, xl: 16, xxl: 20 };
 
-const buttonStyle = {
-  display: 'block',
-  width: '100%',
-  textAlign: 'left',
-  padding: '6px 10px',
-  marginTop: 4,
-  border: '1px solid #ccc',
-  borderRadius: 6,
-  background: '#fff',
-  cursor: 'pointer',
-  fontSize: 14,
-};
+// 遞迴渲染 Flex box/text/separator/image 節點，跟 lib/lineFormat.js 產生的 JSON 結構一一對應，
+// 這樣測試頁面看到的排版就是實際會送到 LINE 的東西，不會有兩邊各自維護、對不上的問題
+function FlexNode({ node, onAction }) {
+  if (!node) return null;
 
-const CATEGORY_COLORS = {
-  飲食: '#f97066',
-  交通: '#4f9cf9',
-  購物: '#f9c846',
-  娛樂: '#a78bfa',
-  醫療: '#34d399',
-  居家: '#fb923c',
-  固定支出: '#5B7F76',
-  其他: '#9ca3af',
-};
+  const clickable = node.action ? { cursor: 'pointer' } : {};
+  const handleClick = node.action ? () => onAction(node.action) : undefined;
 
-function budgetIcon(level) {
-  if (level === 'over') return '🚨';
-  if (level === 'warning') return '⚠️';
-  return '💰';
+  if (node.type === 'separator') {
+    return <div style={{ borderTop: '1px solid #ececec', marginTop: SPACE_PX[node.margin] || 0 }} />;
+  }
+
+  if (node.type === 'text') {
+    return (
+      <div
+        onClick={handleClick}
+        style={{
+          fontSize: SIZE_PX[node.size] || 14,
+          color: node.color || '#111111',
+          fontWeight: node.weight === 'bold' ? 700 : 400,
+          textAlign: node.align === 'end' ? 'right' : node.align === 'center' ? 'center' : 'left',
+          marginTop: SPACE_PX[node.margin] || 0,
+          whiteSpace: node.wrap ? 'normal' : 'nowrap',
+          overflow: node.wrap ? 'visible' : 'hidden',
+          textOverflow: node.wrap ? 'clip' : 'ellipsis',
+          flex: node.flex != null ? `${node.flex} 1 0%` : undefined,
+          minWidth: 0,
+          ...clickable,
+        }}
+      >
+        {node.text}
+      </div>
+    );
+  }
+
+  if (node.type === 'image') {
+    return <img src={node.url} style={{ width: '100%', display: 'block' }} />;
+  }
+
+  if (node.type === 'box') {
+    return (
+      <div
+        onClick={handleClick}
+        style={{
+          display: 'flex',
+          flexDirection: node.layout === 'horizontal' ? 'row' : 'column',
+          // 撐滿交叉軸（垂直於排列方向的那一軸），不是置中：長條圖的色塊都是空內容的box，
+          // 靠這個撐滿父層設定的 height 才會有高度，改成 center 會讓空內容的box塌陷成0高度、變成看不到線
+          alignItems: 'stretch',
+          justifyContent: node.justifyContent || 'flex-start',
+          backgroundColor: node.backgroundColor || 'transparent',
+          borderRadius: node.cornerRadius || 0,
+          padding: node.paddingAll != null ? SPACE_PX[node.paddingAll] ?? node.paddingAll : 0,
+          marginTop: SPACE_PX[node.margin] || 0,
+          height: node.height || undefined,
+          width: node.width || undefined,
+          flex: node.flex != null ? `${node.flex} 1 0%` : undefined,
+          gap: node.spacing ? SPACE_PX[node.spacing] : 0,
+          minWidth: 0,
+          ...clickable,
+        }}
+      >
+        {(node.contents || []).map((child, i) => (
+          <FlexNode key={i} node={child} onAction={onAction} />
+        ))}
+      </div>
+    );
+  }
+
+  return null;
 }
 
-// onSelectIndex(index): 選了 ambiguous 清單裡的第幾筆
-// onDeleteIndex(index): 想直接刪除 list 清單裡的第幾筆
-// onSelectCategory(category): 回答「這筆算哪一類」
-// onListMore(params): 列表分頁，params 帶著 category/startDate/endDate/offset
-// onCategoryDetail(category): 從預算狀態點某個分類，看該分類明細
-function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, onListMore, onCategoryDetail, onMonthlyReport, onManageStart, onEditRecord, onDeleteRecordDirect, onConfirmedDelete) {
-  if (result.error) {
-    return <div style={{ color: '#a33' }}>❌ {result.error}</div>;
-  }
+// bubble 本身（header/body/footer）外面再包一層卡片容器（邊框、陰影、圓角、最大寬度）
+function FlexBubbleView({ bubble, onAction }) {
+  return (
+    <div
+      style={{
+        border: '1px solid #e5e5e5',
+        borderRadius: 12,
+        overflow: 'hidden',
+        maxWidth: 320,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        background: '#fff',
+      }}
+    >
+      {bubble.header && <FlexNode node={bubble.header} onAction={onAction} />}
+      {bubble.body && <FlexNode node={bubble.body} onAction={onAction} />}
+      {bubble.footer && <FlexNode node={bubble.footer} onAction={onAction} />}
+    </div>
+  );
+}
 
-  if (result.type === 'record') {
-    const bs = result.budgetStatus;
-    const overallBad = bs && bs.warningLevel !== 'ok';
-    const hasCategoryWarnings = result.categoryWarnings && result.categoryWarnings.length > 0;
-    const remainingText = bs
-      ? bs.remaining >= 0
-        ? `本月還可以花 $${bs.remaining}`
-        : `本月已超支 $${Math.abs(bs.remaining)}`
-      : '';
+// Quick Reply 一排圓角按鈕，label 直接用 action.label（跟 LINE 上顯示的字一致）
+function QuickReplyRow({ items, onAction }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+      {items.map((item, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onAction(item.action)}
+          style={{
+            padding: '6px 12px',
+            border: '1px solid #5B7F76',
+            borderRadius: 16,
+            background: '#fff',
+            color: '#5B7F76',
+            cursor: 'pointer',
+            fontSize: 13,
+          }}
+        >
+          {item.action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 一則 LINE 訊息：純文字或 Flex，下面可能還帶一排 Quick Reply
+// LINE app 會自動把文字訊息裡的網址變成可點擊連結，這裡做同樣的事，
+// 不然像匯出連結這種訊息在測試頁面上只是一串死文字，點了沒反應
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+function linkify(text) {
+  return text.split(URL_RE).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noreferrer" style={{ color: '#1a5cad', wordBreak: 'break-all' }}>
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
+function LineMessageView({ message, onAction }) {
+  if (message.type === 'text') {
     return (
-      <div>
-        {result.expenses.map((e, i) => (
-          <div key={i} style={{ color: '#0a7d32' }}>
-            ✅ {e.date} {e.item} ${e.amount}（{e.category}）
-            {e.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{e.note}</div>}
-          </div>
-        ))}
-        {hasCategoryWarnings &&
-          result.categoryWarnings.map((c) => (
-            <div
-              key={c.category}
-              style={{
-                fontSize: 13,
-                color: c.warningLevel === 'over' ? '#a33' : '#b8860b',
-                fontWeight: 'bold',
-                marginTop: 4,
-              }}
-            >
-              {c.warningLevel === 'over' ? '🚨' : '⚠️'} {c.category}
-              {c.warningLevel === 'over'
-                ? `已超支 $${Math.abs(c.remaining)}`
-                : `已用${Math.round((c.spent / c.allocatedAmount) * 100)}%`}
-              （{remainingText}）
-            </div>
-          ))}
-        {!hasCategoryWarnings && overallBad && (
-          <div
-            style={{
-              fontSize: 13,
-              color: bs.warningLevel === 'over' ? '#a33' : '#b8860b',
-              fontWeight: 'bold',
-              marginTop: 4,
-            }}
-          >
-            {bs.warningLevel === 'over' ? '🚨' : '⚠️'} {remainingText}
-          </div>
-        )}
+      <div style={{ marginBottom: 8 }}>
+        <div
+          style={{
+            display: 'inline-block',
+            background: '#fff',
+            border: '1px solid #e5e5e5',
+            borderRadius: 12,
+            padding: '10px 14px',
+            maxWidth: 320,
+            whiteSpace: 'pre-wrap',
+            fontSize: 14,
+            lineHeight: 1.6,
+          }}
+        >
+          {linkify(message.text)}
+        </div>
+        {message.quickReply && <QuickReplyRow items={message.quickReply.items} onAction={onAction} />}
       </div>
     );
   }
-
-  if (result.type === 'set_budget') {
-    const b = result.budget;
+  if (message.type === 'flex') {
     return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>✅ 預算已設定</div>
-          {b.monthlyLimit != null && <div style={{ fontSize: 22, fontWeight: 'bold' }}>${b.monthlyLimit} / 月</div>}
-          <div style={{ fontSize: 12, opacity: 0.85 }}>
-            薪水 ${b.salary ?? '未設定'}
-            {b.savingsGoal != null && `，目標存 $${b.savingsGoal}`}
-            {b.spendingPercentage != null && `，最多花 ${b.spendingPercentage}%`}
-          </div>
-        </div>
-        {result.categories && result.categories.length > 0 && (
-          <div style={{ padding: '10px 14px' }}>
-            {result.categories.map((c) => {
-              const hasAmount = c.allocatedAmount != null;
-              const pct = hasAmount
-                ? c.allocatedAmount > 0
-                  ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100))
-                  : 0
-                : c.percentage;
-              return (
-                <div key={c.category} style={{ marginBottom: 6 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span>{c.category}</span>
-                    <span style={{ color: '#999' }}>{c.percentage}%</span>
-                  </div>
-                  <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                    <div
-                      style={{
-                        width: `${Math.min(100, pct)}%`,
-                        background: CATEGORY_COLORS[c.category],
-                        height: 6,
-                        borderRadius: 4,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div style={{ marginBottom: 8 }}>
+        <FlexBubbleView bubble={message.contents} onAction={onAction} />
+        {message.quickReply && <QuickReplyRow items={message.quickReply.items} onAction={onAction} />}
       </div>
     );
   }
-
-  if (result.type === 'adjust_category_menu') {
-    return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>🎯 要調整哪個分類的比例？</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {Object.keys(CATEGORY_COLORS).map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onSelectCategory(`調整${cat}比例`)}
-              style={{
-                padding: '6px 12px',
-                border: `1px solid ${CATEGORY_COLORS[cat]}`,
-                borderRadius: 16,
-                background: '#fff',
-                color: CATEGORY_COLORS[cat],
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'adjust_category_percent_step') {
-    const options = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-    return (
-      <div style={{ color: '#b8860b' }}>
-        <div>
-          📊 {result.category} 目前是 {result.current}%，要改成多少？
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {options.map((pct) => (
-            <button
-              key={pct}
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onSelectCategory(`修改${result.category}為${pct}%`)}
-            >
-              {pct}%
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'set_category_budget') {
-    if (result.missingPercentage) {
-      return (
-        <div style={{ color: '#b8860b' }}>
-          ❓ 要改成多少%？{result.category ? `（${result.category}）` : ''}例如「修改{result.category || '飲食'}為30%」
-        </div>
-      );
-    }
-    if (result.invalid) {
-      return <div style={{ color: '#a33' }}>⚠️ 不是有效的分類名稱</div>;
-    }
-    if (result.tooMuch) {
-      return (
-        <div style={{ color: '#a33' }}>
-          ⚠️ 你講的這幾個分類加起來已經 {result.specifiedSum}%，超過100%了，麻煩降低一點
-        </div>
-      );
-    }
-    if (result.allSpecifiedMismatch) {
-      return (
-        <div style={{ color: '#a33' }}>
-          ⚠️ 你一次講了全部8個分類，但加起來是 {result.specifiedSum}%，不是100%，因為沒有其他分類可以自動吸收差額，麻煩調整成剛好100%
-        </div>
-      );
-    }
-    const entries = Object.entries(result.allocation);
-    const specifiedList = result.specified || [];
-    const autoAdjusted = entries.map(([cat]) => cat).filter((c) => !specifiedList.includes(c));
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
-          <div style={{ fontWeight: 'bold' }}>✅ 分類比例已調整</div>
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
-            你設定：{specifiedList.join('、')}
-            {autoAdjusted.length > 0 && (
-              <>
-                <br />
-                自動依比例調整：{autoAdjusted.join('、')}
-              </>
-            )}
-          </div>
-        </div>
-        <div style={{ padding: '10px 14px' }}>
-          {entries.map(([cat, pct]) => (
-            <div key={cat} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span>{cat}</span>
-                <span style={{ color: '#999' }}>
-                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
-                </span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                <div style={{ width: `${pct}%`, background: '#5B7F76', height: 6, borderRadius: 4 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-
-  if (result.type === 'budget_status') {
-    const overallColor =
-      result.warningLevel === 'over' ? '#a33' : result.warningLevel === 'warning' ? '#b8860b' : '#1a5cad';
-    return (
-      <div>
-        {result.notSet ? (
-          <div style={{ color: '#999', marginBottom: 8 }}>
-            ⚠️ 還沒有設定薪水或目標，先跟我說「薪水50000，目標存15000」之類的
-          </div>
-        ) : (
-          <div style={{ color: overallColor, marginBottom: 10 }}>
-            {budgetIcon(result.warningLevel)} {result.month} 已花 ${result.spent} / ${result.monthlyLimit}（
-            {result.percentageUsed}%）
-            <br />
-            {result.remaining >= 0 ? `還可以花 $${result.remaining}` : `已超支 $${Math.abs(result.remaining)}`}
-          </div>
-        )}
-        {result.categories && result.categories.length > 0 && (
-          <div>
-            {result.categories.map((c) => {
-              const hasAmount = c.allocatedAmount != null;
-              const pct = hasAmount
-                ? c.allocatedAmount > 0
-                  ? Math.min(100, Math.round((c.spent / c.allocatedAmount) * 100))
-                  : 0
-                : c.percentage;
-              const barColor =
-                c.warningLevel === 'over' ? '#a33' : c.warningLevel === 'warning' ? '#b8860b' : CATEGORY_COLORS[c.category];
-              return (
-                <div key={c.category} style={{ marginBottom: 6 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span>{c.category}</span>
-                    <span style={{ color: '#999' }}>
-                      {hasAmount ? `${c.percentage}% · $${c.spent}/$${c.allocatedAmount}` : `${c.percentage}%`}
-                    </span>
-                  </div>
-                  <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                    <div
-                      style={{
-                        width: `${Math.min(100, pct)}%`,
-                        background: barColor,
-                        height: 6,
-                        borderRadius: 4,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {result.categories && result.categories.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-            {result.categories.map((c) => (
-              <button
-                key={c.category}
-                type="button"
-                onClick={() => onCategoryDetail(c.category)}
-                style={{
-                  padding: '4px 10px',
-                  border: `1px solid ${CATEGORY_COLORS[c.category] || '#999'}`,
-                  borderRadius: 14,
-                  background: '#fff',
-                  color: CATEGORY_COLORS[c.category] || '#999',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                }}
-              >
-                {c.category} 明細
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (result.type === 'query') {
-    const entries = Object.entries(result.byCategory || {});
-    return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>
-          📊 {result.label}
-          {result.category ? `（${result.category}）` : ''}：共 {result.count} 筆，
-          總計 ${result.total}
-        </div>
-        {entries.length > 1 && (
-          <div style={{ marginTop: 4, fontSize: 14, color: '#555' }}>
-            {entries.map(([cat, amt]) => (
-              <div key={cat}>
-                {CATEGORY_LABELS[cat] || cat}：${amt}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (result.type === 'delete_last') {
-    if (result.empty) {
-      return <div style={{ color: '#a33' }}>⚠️ 沒有找到可以刪除的記錄</div>;
-    }
-    const d = result.deleted;
-    return (
-      <div style={{ color: '#a33' }}>
-        🗑️ 已刪除：{d.date} {d.item} ${d.amount}（{d.category}）
-      </div>
-    );
-  }
-
-  if (result.type === 'modify_last') {
-    if (result.empty) {
-      return <div style={{ color: '#a33' }}>⚠️ 沒有找到可以修改的記錄</div>;
-    }
-    const r = result.record;
-    if (result.record.unchanged) {
-      return <div style={{ color: '#a33' }}>⚠️ 沒有偵測到要修改的內容</div>;
-    }
-    return (
-      <div style={{ color: '#b8860b' }}>
-        ✏️ 已修改為：{r.date} {r.item} ${r.amount}（{r.category}）
-        {r.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{r.note}</div>}
-      </div>
-    );
-  }
-
-  if (result.type === 'list_scope_prompt') {
-    const cat = result.category;
-    const catLabel = cat || '所有記錄';
-    const scopeText = (label) => (cat ? `列出${label}${cat}` : `列出${label}所有記錄`);
-    return (
-      <div style={{ color: '#b8860b' }}>
-        <div>❓ 要看哪個範圍的{catLabel}？</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('這個月'))}>
-            本月
-          </button>
-          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('上個月'))}>
-            上個月
-          </button>
-          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('今年'))}>
-            今年
-          </button>
-          <button type="button" style={{ ...buttonStyle, width: 'auto' }} onClick={() => onSelectCategory(scopeText('去年'))}>
-            去年
-          </button>
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto' }}
-            onClick={() => onSelectCategory(cat ? `列出不限日期的${cat}` : '列出不限日期的所有記錄')}
-          >
-            不限日期
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'list_large') {
-    const exportHref = `/api/export?userId=test-user${result.category ? `&category=${encodeURIComponent(result.category)}` : ''}${result.startDate ? `&start=${result.startDate}` : ''}${result.endDate ? `&end=${result.endDate}` : ''}`;
-    return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>
-          📊 符合條件的記錄有 {result.count} 筆，總計 ${result.total}
-        </div>
-        <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>資料量較大，建議直接匯出查看。</div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <a href={exportHref} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <button type="button" style={{ ...buttonStyle, width: 'auto', color: '#0a7d32', borderColor: '#0a7d32' }}>
-              📊 匯出Excel
-            </button>
-          </a>
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto' }}
-            onClick={() =>
-              onListMore({ category: result.category, startDate: result.startDate, endDate: result.endDate, offset: 0 })
-            }
-          >
-            還是要看清單
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'list') {
-    if (result.records.length === 0) {
-      return <div style={{ color: '#999' }}>📋 沒有符合條件的記錄</div>;
-    }
-    const exportHref = `/api/export?userId=test-user${result.category ? `&category=${encodeURIComponent(result.category)}` : ''}${result.startDate ? `&start=${result.startDate}` : ''}${result.endDate ? `&end=${result.endDate}` : ''}`;
-    return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>
-          📋 共 {result.count} 筆，總計 ${result.total}
-        </div>
-        <div style={{ marginTop: 4, fontSize: 14 }}>
-          {result.records.map((r) => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <span style={{ flex: 1 }}>
-                #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
-              </span>
-              <button
-                type="button"
-                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
-                style={{
-                  border: '1px solid #b8860b',
-                  background: '#fffaf0',
-                  color: '#b8860b',
-                  borderRadius: 4,
-                  padding: '2px 8px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                ✏️ 編輯
-              </button>
-              <button
-                type="button"
-                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
-                style={{
-                  border: '1px solid #e0a0a0',
-                  background: '#fff5f5',
-                  color: '#a33',
-                  borderRadius: 4,
-                  padding: '2px 8px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                🗑️ 刪除
-              </button>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          {result.hasMore && (
-            <button
-              type="button"
-              style={{ ...buttonStyle, width: 'auto', color: '#1a5cad', fontWeight: 'bold' }}
-              onClick={() =>
-                onListMore({
-                  category: result.category,
-                  startDate: result.startDate,
-                  endDate: result.endDate,
-                  offset: result.nextOffset,
-                })
-              }
-            >
-              看更多 ↓
-            </button>
-          )}
-          <a href={exportHref} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-            <button type="button" style={{ ...buttonStyle, width: 'auto', color: '#0a7d32', borderColor: '#0a7d32' }}>
-              📊 匯出這份Excel
-            </button>
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'confirm_category_cancelled') {
-    return (
-      <div style={{ color: '#999' }}>
-        ❌ 已取消，這筆沒有記錄{result.skippedCount > 1 ? `（連同待確認的其他 ${result.skippedCount - 1} 筆一起取消）` : ''}
-      </div>
-    );
-  }
-
-  if (result.type === 'record_with_confirm' || result.type === 'confirm_category') {
-    const item = result.item;
-    return (
-      <div>
-        {result.savedExpenses &&
-          result.savedExpenses.map((e, i) => (
-            <div key={i} style={{ color: '#0a7d32' }}>
-              ✅ {e.date} {e.item} ${e.amount}（{e.category}）
-            </div>
-          ))}
-        {result.savedItem && (
-          <div style={{ color: '#0a7d32' }}>
-            ✅ {result.savedItem.date} {result.savedItem.item} ${result.savedItem.amount}（
-            {result.savedItem.category}）
-          </div>
-        )}
-        {result.invalid && (
-          <div style={{ color: '#a33', fontSize: 13, marginBottom: 4 }}>⚠️ 不是有效的分類，請從下面選：</div>
-        )}
-        <div style={{ color: '#b8860b', marginTop: 4 }}>
-          ❓ 「{item.item} ${item.amount}」這筆算哪一類？
-          {result.remaining > 1 && <span style={{ fontSize: 12, color: '#999' }}>（還有 {result.remaining - 1} 筆待確認）</span>}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {result.options.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onSelectCategory(cat)}
-              style={{
-                padding: '6px 12px',
-                border: `1px solid ${CATEGORY_COLORS[cat]}`,
-                borderRadius: 16,
-                background: '#fff',
-                color: CATEGORY_COLORS[cat],
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => onSelectCategory('取消')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #999',
-              borderRadius: 16,
-              background: '#fff',
-              color: '#999',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
-          >
-            ❌ 取消
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'manage_unspecified') {
-    if (result.candidates.length === 0) {
-      return <div style={{ color: '#999' }}>📋 目前沒有任何記錄</div>;
-    }
-    const headerText = result.fromLastList
-      ? '📋 剛剛列出的清單（點列編輯／點🗑️刪除）'
-      : `📋 最近 ${result.candidates.length} 筆（點列編輯／點🗑️刪除）`;
-    const switchAction = result.fromLastList ? { label: '🔁 改用近20筆', source: 'recent20' } : null;
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#B8860B', color: '#fff', padding: '10px 14px', fontSize: 13 }}>{headerText}</div>
-        <div style={{ padding: '6px 14px' }}>
-          {result.candidates.map((r) => (
-            <div
-              key={r.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 0',
-                borderBottom: '1px solid #f0f0f0',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
-                style={{
-                  flex: 1,
-                  textAlign: 'left',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 13,
-                }}
-              >
-                #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
-              </button>
-              <button
-                type="button"
-                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
-                style={{
-                  border: '1px solid #e0a0a0',
-                  background: '#fff5f5',
-                  color: '#a33',
-                  borderRadius: 4,
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                🗑️
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => onSelectCategory('取消')}
-            style={{
-              display: 'block',
-              width: '100%',
-              textAlign: 'left',
-              padding: '8px 0',
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              fontSize: 13,
-              color: '#999',
-            }}
-          >
-            ❌ 取消
-          </button>
-          {switchAction && (
-            <button
-              type="button"
-              onClick={() => onManageStart(switchAction.source, switchAction.label)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '8px 0',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                color: '#1a5cad',
-              }}
-            >
-              {switchAction.label}
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'manage_cancelled') {
-    return <div style={{ color: '#999' }}>❌ 已取消</div>;
-  }
-
-  if (result.type === 'budget_help') {
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
-          ⚙️ 設定預算
-        </div>
-        <div style={{ padding: '12px 14px' }}>
-          {result.budget && result.budget.monthlyLimit != null ? (
-            <div style={{ background: '#EAF2EF', borderRadius: 8, padding: '8px 10px', marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: '#5B7F76', fontWeight: 'bold' }}>✅ 目前已設定</div>
-              <div style={{ fontSize: 13, marginTop: 2 }}>
-                薪水 ${result.budget.salary ?? '未設定'}
-                {result.budget.savingsGoal != null && `，目標存 $${result.budget.savingsGoal}`}
-                {result.budget.spendingPercentage != null && `，最多花 ${result.budget.spendingPercentage}%`}，每月上限 $
-                {result.budget.monthlyLimit}
-              </div>
-            </div>
-          ) : (
-            <div style={{ background: '#FBF2E3', borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 13, color: '#B8860B' }}>
-              ⚠️ 尚未設定預算，請參考下方範例
-            </div>
-          )}
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>請提供薪水與存款目標，系統將自動計算每月可花費上限：</div>
-          <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 6 }}>
-            「薪水50000，目標存15000」
-          </div>
-          <div style={{ background: '#f5f5f5', borderRadius: 8, padding: '8px 10px', fontSize: 13, marginBottom: 10 }}>
-            「薪水50000，最多花70%」
-          </div>
-          <div style={{ fontSize: 12, color: '#999' }}>
-            如需調整分類比例，可輸入「修改飲食為30%」，亦可一次調整多個分類，例如「飲食30%，交通10%」；或使用下方按鈕操作。
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onSelectCategory('目前比例')}
-            >
-              📊 目前比例
-            </button>
-            <button
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onSelectCategory('調整分類比例')}
-            >
-              🎯 用按鈕調整比例
-            </button>
-            <button
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onSelectCategory('恢復預設比例')}
-            >
-              🔄 恢復預設比例
-            </button>
-            {result.budget && result.budget.monthlyLimit != null && (
-              <button
-                type="button"
-                style={{ ...buttonStyle, width: 'auto', color: '#a33', borderColor: '#a33' }}
-                onClick={() => onSelectCategory('刪除預算')}
-              >
-                🗑️ 清除預算設定
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'delete_budget') {
-    return (
-      <div style={{ color: result.wasEmpty ? '#999' : '#0a7d32' }}>
-        {result.wasEmpty ? '目前沒有設定預算，不需要清除。' : '✅ 已清除薪水/目標/每月上限，分類比例配置不受影響。'}
-      </div>
-    );
-  }
-
-  if (result.type === 'view_category_allocation') {
-    const entries = Object.entries(result.allocation);
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
-          📊 目前分類比例
-        </div>
-        <div style={{ padding: '10px 14px' }}>
-          {entries.map(([cat, pct]) => (
-            <div key={cat} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span>{cat}</span>
-                <span style={{ color: '#999' }}>
-                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
-                </span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                <div style={{ width: `${pct}%`, background: '#5B7F76', height: 6, borderRadius: 4 }} />
-              </div>
-            </div>
-          ))}
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto', marginTop: 8 }}
-            onClick={() => onSelectCategory('恢復預設比例')}
-          >
-            🔄 恢復預設比例
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'category_allocation_reset') {
-    const entries = Object.entries(result.allocation);
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#0a7d32', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
-          ✅ 已恢復預設分類比例
-        </div>
-        <div style={{ padding: '10px 14px' }}>
-          {entries.map(([cat, pct]) => (
-            <div key={cat} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span>{cat}</span>
-                <span style={{ color: '#999' }}>
-                  {pct}%{result.monthlyLimit != null && ` （$${Math.round((result.monthlyLimit * pct) / 100)}）`}
-                </span>
-              </div>
-              <div style={{ background: '#eee', borderRadius: 4, height: 6 }}>
-                <div style={{ width: `${pct}%`, background: '#0a7d32', height: 6, borderRadius: 4 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'list_menu') {
-    const ranges = [
-      { label: '本日', text: '列出今天所有記錄' },
-      { label: '本週', text: '列出這週所有記錄' },
-      { label: '本月', text: '列出這個月所有記錄' },
-      { label: '今年', text: '列出今年所有記錄' },
-      { label: '去年', text: '列出去年所有記錄' },
-      { label: '其他區間', text: '自訂區間' },
-    ];
-    return (
-      <div style={{ color: '#1a5cad' }}>
-        <div>📋 要看哪個範圍的明細？</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {ranges.map((r) => (
-            <button
-              key={r.label}
-              type="button"
-              style={{ ...buttonStyle, width: 'auto' }}
-              onClick={() => onSelectCategory(r.text)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'custom_range_help') {
-    return (
-      <div style={{ color: '#1a5cad', fontSize: 14 }}>
-        📅 跟我說想查的區間就好，例如「列出7/1到7/15的記錄」「列出3月的飲食」，日期我會自動幫你抓。
-      </div>
-    );
-  }
-
-  if (result.type === 'help') {
-    const menuSections = [
-      { icon: '📋', title: '明細', desc: '查詢指定範圍的消費紀錄。', example: '範例：「明細」「列出這個月飲食」' },
-      { icon: '💰', title: '預算狀態', desc: '查看本月已花金額、剩餘額度與各分類佔比。', example: '範例：「這個月還剩多少」' },
-      {
-        icon: '⚙️',
-        title: '設定預算',
-        desc: '設定薪水與存款目標，或調整分類比例（未指定的分類會依原比例自動調整）。',
-        example: '範例：「薪水50000，目標存15000」「修改飲食為30%」',
-      },
-      { icon: '✏️', title: '編輯記錄', desc: '選擇一筆記錄進行修改或刪除。', example: '範例：「編輯記錄」' },
-      { icon: '🧾', title: '月報表', desc: '查看本月消費分佈，可切換至過去數月。', example: '範例：「月報表」「上個月報表」' },
-    ];
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px', fontWeight: 'bold' }}>
-          💡 使用說明
-        </div>
-        <div style={{ padding: '12px 14px' }}>
-          {menuSections.map((s, i) => (
-            <div
-              key={s.title}
-              style={{
-                paddingTop: i === 0 ? 0 : 10,
-                marginTop: i === 0 ? 0 : 10,
-                borderTop: i === 0 ? 'none' : '1px solid #eee',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 'bold', color: '#5B7F76' }}>
-                {s.icon} {s.title}
-              </div>
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{s.desc}</div>
-              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{s.example}</div>
-            </div>
-          ))}
-          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee' }}>
-            <div style={{ fontSize: 13, fontWeight: 'bold', color: '#5B7F76' }}>✏️ 記帳</div>
-            <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>輸入消費內容即可記錄，可一次輸入多筆。</div>
-            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>範例：「午餐100元」「午餐100元，晚餐300元」</div>
-          </div>
-          <div style={{ fontSize: 11, color: '#999', marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee' }}>
-            需要選擇時會提供按鈕操作；查詢明細後可使用「匯出Excel」下載記錄。
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'monthly_report') {
-    if (result.categories.length === 0) {
-      return <div style={{ color: '#999' }}>🧾 {result.month} 還沒有任何記錄</div>;
-    }
-    const ranked = [...result.categories].sort((a, b) => b.amount - a.amount);
-    const medals = ['🥇', '🥈', '🥉'];
-    return (
-      <div
-        style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: 12,
-          overflow: 'hidden',
-          maxWidth: 320,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ background: '#5B7F76', color: '#fff', padding: '10px 14px' }}>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>🧾 {result.month} 消費報表</div>
-          <div style={{ fontSize: 22, fontWeight: 'bold' }}>${result.total}</div>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>共 {result.count} 筆</div>
-        </div>
-        <div style={{ padding: '12px 14px' }}>
-          {/* 單一疊層長條：所有分類接在同一條裡 */}
-          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
-            {ranked.map((c) => (
-              <div
-                key={c.category}
-                style={{ width: `${c.percentage}%`, background: CATEGORY_COLORS[c.category] || '#9ca3af' }}
-              />
-            ))}
-          </div>
-          {ranked.map((c, i) => (
-            <div key={c.category} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
-              <span
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  background: CATEGORY_COLORS[c.category] || '#9ca3af',
-                  display: 'inline-block',
-                }}
-              />
-              <span style={{ flex: 1 }}>
-                {medals[i] || `${i + 1}.`} {c.category}
-              </span>
-              <span style={{ fontWeight: i < 3 ? 'bold' : 'normal' }}>${c.amount}</span>
-              <span style={{ color: '#999', width: 40, textAlign: 'right' }}>{c.percentage}%</span>
-            </div>
-          ))}
-        </div>
-        {result.recentMonths && result.recentMonths.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 14px 12px' }}>
-            {result.recentMonths.map((m) => (
-              <button
-                key={m}
-                type="button"
-                style={{ ...buttonStyle, width: 'auto', fontSize: 12 }}
-                onClick={() => onMonthlyReport(m)}
-              >
-                {parseInt(m.split('-')[1], 10)}月
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (result.type === 'awaiting_value') {
-    const r = result.record;
-    return (
-      <div style={{ color: '#b8860b' }}>
-        ✏️ 選好了：{r.date} {r.item} ${r.amount}（{r.category}）
-        <br />
-        要改成什麼？
-        <div style={{ marginTop: 6 }}>
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'auto', color: '#999' }}
-            onClick={() => onSelectCategory('取消')}
-          >
-            ❌ 取消
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'ambiguous') {
-    return (
-      <div style={{ color: '#b8860b' }}>
-        <div>⚠️ 找到多筆符合的記錄（點列編輯／點🗑️刪除）：</div>
-        <div style={{ marginTop: 4 }}>
-          {result.candidates.map((r) => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <button
-                type="button"
-                onClick={() => onEditRecord(r.id, `#${r.index} ${r.item}`)}
-                style={{ ...buttonStyle, width: 'auto', flex: 1, textAlign: 'left' }}
-              >
-                #{r.index} {r.date} {r.item} ${r.amount}（{r.category}）
-              </button>
-              <button
-                type="button"
-                onClick={() => onDeleteRecordDirect(r.id, `#${r.index} ${r.item}`)}
-                style={{
-                  border: '1px solid #e0a0a0',
-                  background: '#fff5f5',
-                  color: '#a33',
-                  borderRadius: 4,
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                🗑️
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            style={{ ...buttonStyle, color: '#999', marginTop: 4 }}
-            onClick={() => onSelectCategory('取消')}
-          >
-            ❌ 取消
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'not_found') {
-    return <div style={{ color: '#a33' }}>⚠️ 沒有找到符合的記錄</div>;
-  }
-
-  if (result.type === 'confirm_delete') {
-    const r = result.record;
-    return (
-      <div style={{ color: '#a33' }}>
-        {result.invalid && <div style={{ fontSize: 13, marginBottom: 4 }}>⚠️ 看不懂，請點下面按鈕：</div>}
-        <div>
-          🗑️ 確定要刪除這筆嗎？
-          <br />
-          {r.date} {r.item} ${r.amount}（{r.category}）
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-          <button
-            type="button"
-            onClick={() => onConfirmedDelete(r.id, `${r.date} ${r.item}`)}
-            style={{
-              padding: '6px 14px',
-              border: '1px solid #a33',
-              borderRadius: 16,
-              background: '#fff',
-              color: '#a33',
-              cursor: 'pointer',
-            }}
-          >
-            🗑️ 確定刪除
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectCategory('取消')}
-            style={{
-              padding: '6px 14px',
-              border: '1px solid #999',
-              borderRadius: 16,
-              background: '#fff',
-              color: '#999',
-              cursor: 'pointer',
-            }}
-          >
-            ❌ 取消
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (result.type === 'delete_specific') {
-    const d = result.deleted;
-    return (
-      <div style={{ color: '#a33' }}>
-        🗑️ 已刪除：{d.date} {d.item} ${d.amount}（{d.category}）
-      </div>
-    );
-  }
-
-  if (result.type === 'delete_batch') {
-    return (
-      <div>
-        {result.deleted.length > 0 && (
-          <div style={{ color: '#a33' }}>
-            🗑️ 已刪除 {result.deleted.length} 筆：
-            {result.deleted.map((r, i) => (
-              <div key={i} style={{ marginLeft: 16 }}>
-                {r.date} {r.item} ${r.amount}（{r.category}）
-              </div>
-            ))}
-          </div>
-        )}
-        {result.notFound.length > 0 && (
-          <div style={{ color: '#999', marginTop: 4 }}>
-            ⚠️ 找不到符合的：{result.notFound.map((t) => t.item || t.date || '?').join('、')}
-          </div>
-        )}
-        {result.ambiguousTargets.length > 0 &&
-          result.ambiguousTargets.map(({ target, candidates }, i) => (
-            <div key={i} style={{ color: '#b8860b', marginTop: 4 }}>
-              ❓「{target.item}」比對到多筆，這次跳過，請用更精確的方式指定（例如加上日期）：
-              {candidates.map((c) => (
-                <div key={c.id} style={{ marginLeft: 16 }}>
-                  #{c.index} {c.date} {c.item} ${c.amount}（{c.category}）
-                </div>
-              ))}
-            </div>
-          ))}
-      </div>
-    );
-  }
-
-  if (result.type === 'modify_specific') {
-    if (result.unchanged) {
-      return <div style={{ color: '#a33' }}>⚠️ 沒有偵測到要修改的內容</div>;
-    }
-    const r = result.record;
-    return (
-      <div style={{ color: '#b8860b' }}>
-        ✏️ 已修改為：{r.date} {r.item} ${r.amount}（{r.category}）
-        {r.note && <div style={{ fontSize: 12, color: '#999', marginLeft: 16 }}>備註：{r.note}</div>}
-      </div>
-    );
-  }
-
-  return <div style={{ color: '#a33' }}>🤔 沒有偵測到記帳或查詢意圖</div>;
+  return null;
 }
 
 export default function TestPage() {
@@ -1213,131 +179,135 @@ export default function TestPage() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 統一的送出函式：不管是手打送出，還是點按鈕觸發，都走這一條
-  async function sendMessage(text) {
+  // 所有跟後端互動的動作都走這裡：打 /api/test-parse、拿到 result，
+  // 用跟正式環境完全相同的 resultToLineMessages() 轉成 LINE 訊息陣列再存進歷史紀錄
+  async function callApi(body, userMsg) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/test-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, userId: 'test-user' }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setHistory((prev) => [...prev, { userMsg, error: data.error }]);
+      } else {
+        const messages = resultToLineMessages(data);
+        setHistory((prev) => [...prev, { userMsg, messages }]);
+      }
+    } catch (err) {
+      setHistory((prev) => [...prev, { userMsg, error: err.message }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function sendMessage(text, userMsg) {
     if (!text || !text.trim()) return;
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: text, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: text, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
-    }
+    return callApi({ message: text }, userMsg ?? text);
+  }
+  function sendListMore(params, userMsg) {
+    return callApi({ listMore: params }, userMsg ?? '看更多');
+  }
+  function sendReportMonth(month, userMsg) {
+    return callApi({ reportMonth: month }, userMsg ?? `${month} 報表`);
+  }
+  function sendManageStart(source, userMsg) {
+    return callApi({ manageSource: source }, userMsg ?? '編輯');
+  }
+  function sendEditRecord(id, userMsg) {
+    return callApi({ editRecordId: id }, userMsg ?? '編輯');
+  }
+  function sendConfirmDelete(id, userMsg) {
+    return callApi({ confirmDeleteId: id }, userMsg ?? '刪除');
+  }
+  function sendDeleteRecord(id, userMsg) {
+    return callApi({ deleteRecordId: id }, userMsg ?? '確定刪除');
+  }
+  function sendToggleCategory(name, userMsg) {
+    return callApi({ toggleCategoryName: name }, userMsg ?? `切換${name}`);
+  }
+  function sendCategoryMenu(name, userMsg) {
+    return callApi({ categoryMenuName: name }, userMsg ?? `管理${name}`);
+  }
+  function sendStartCategoryEmoji(name, userMsg) {
+    return callApi({ startCategoryEmojiName: name }, userMsg ?? `修改${name}的emoji`);
+  }
+  function sendStartCategoryRename(name, userMsg) {
+    return callApi({ startCategoryRenameName: name }, userMsg ?? `修改${name}的名稱`);
+  }
+  function sendCategorySettingsMore(offset, userMsg) {
+    return callApi({ categorySettingsMoreOffset: offset }, userMsg ?? '看更多已停用分類');
   }
 
-  // 分頁專用：直接帶查詢條件跟 offset，不經過 AI 分類，不依賴任何全域狀態
-  async function sendListMore(params) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ listMore: params, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: '看更多', result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: '看更多', result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
-    }
+  // 匯出是唯一不經過 handleMessage() 的 postback，webhook 那邊也是直接組連結回覆文字，這裡照樣模擬
+  function sendExportLink(params, userMsg) {
+    const query = new URLSearchParams({
+      userId: 'test-user',
+      ...(params.category && { category: params.category }),
+      ...(params.start && { start: params.start }),
+      ...(params.end && { end: params.end }),
+    });
+    // 跟正式環境的 webhook 一樣組出完整網址（不是相對路徑），這樣才是使用者實際會看到、能點的連結
+    const url = `${window.location.origin}/api/export?${query.toString()}`;
+    setHistory((prev) => [
+      ...prev,
+      { userMsg, messages: [{ type: 'text', text: `📊 匯出完成，點連結下載 CSV：\n${url}` }] },
+    ]);
   }
 
-  async function sendReportMonth(month) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportMonth: month, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: `${month} 報表`, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: `${month} 報表`, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // 所有 Flex/QuickReply 上的 action（點擊 box 或按鈕）統一從這裡分派，
+  // 邏輯對應 pages/api/line-webhook.js 的 postback 處理，讓測試頁面點擊行為跟正式環境一致
+  function handleAction(action) {
+    if (!action) return;
 
-  async function sendManageStart(source, label) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manageSource: source, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: label, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: label, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
+    if (action.type === 'message') {
+      sendMessage(action.text, action.text);
+      return;
     }
-  }
 
-  async function sendEditRecord(id, label) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ editRecordId: id, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: `編輯 ${label}`, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: `編輯 ${label}`, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    if (action.type === 'postback') {
+      const params = new URLSearchParams(action.data);
+      const type = params.get('action');
+      const userMsg = action.displayText || type;
 
-  async function sendDeleteRecord(id, label) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteRecordId: id, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function sendConfirmDelete(id, label) {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/test-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmDeleteId: id, userId: 'test-user' }),
-      });
-      const data = await res.json();
-      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: data }]);
-    } catch (err) {
-      setHistory((prev) => [...prev, { userMsg: `刪除 ${label}`, result: { error: err.message } }]);
-    } finally {
-      setLoading(false);
+      if (type === 'edit_record') return sendEditRecord(params.get('id'), userMsg);
+      if (type === 'confirm_delete') return sendConfirmDelete(params.get('id'), userMsg);
+      if (type === 'delete_record') return sendDeleteRecord(params.get('id'), userMsg);
+      if (type === 'list_more' || type === 'list_force') {
+        return sendListMore(
+          {
+            category: params.get('category') || null,
+            startDate: params.get('start') || null,
+            endDate: params.get('end') || null,
+            offset: parseInt(params.get('offset'), 10) || 0,
+          },
+          userMsg
+        );
+      }
+      if (type === 'export') {
+        return sendExportLink(
+          { category: params.get('category') || '', start: params.get('start') || '', end: params.get('end') || '' },
+          userMsg
+        );
+      }
+      if (type === 'monthly_report') return sendReportMonth(params.get('month'), userMsg);
+      if (type === 'manage_start') return sendManageStart(params.get('source'), userMsg);
+      if (type === 'toggle_category') return sendToggleCategory(params.get('name'), userMsg);
+      if (type === 'category_menu') return sendCategoryMenu(params.get('name'), userMsg);
+      if (type === 'start_category_emoji') return sendStartCategoryEmoji(params.get('name'), userMsg);
+      if (type === 'start_category_rename') return sendStartCategoryRename(params.get('name'), userMsg);
+      if (type === 'category_settings_more') {
+        return sendCategorySettingsMore(parseInt(params.get('offset'), 10) || 0, userMsg);
+      }
     }
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    const text = message;
+    const text = message.trim();
+    if (!text) return;
     setMessage('');
     sendMessage(text);
   }
@@ -1345,7 +315,7 @@ export default function TestPage() {
   const quickActions = [
     { label: '📋 明細', text: '明細' },
     { label: '💰 預算狀態', text: '這個月還剩多少可以花' },
-    { label: '⚙️ 設定預算', text: '設定預算' },
+    { label: '⚙️ 設定', text: '設定' },
     { label: '✏️ 編輯記錄', text: '我要編輯' },
     { label: '💡 使用說明', text: '使用說明' },
     { label: '🧾 月報表', text: '月報表' },
@@ -1355,7 +325,8 @@ export default function TestPage() {
     <div style={{ maxWidth: 480, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 16px 100px' }}>
       <h2>記帳測試（本機用，不會出現在正式 LINE 畫面）</h2>
       <div style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>
-        右下角是常駐選單（LINE 上會做成 Rich Menu），月報表跟明細都是卡片式呈現
+        畫面直接渲染實際會送到 LINE 的 Flex Message JSON（跟 lib/lineFormat.js 共用同一份邏輯），
+        右下角是常駐選單（LINE 上會做成 Rich Menu）
       </div>
       <div
         style={{
@@ -1364,6 +335,7 @@ export default function TestPage() {
           padding: 16,
           minHeight: 300,
           marginBottom: 16,
+          background: '#f5f5f3',
         }}
       >
         {history.length === 0 && (
@@ -1373,21 +345,10 @@ export default function TestPage() {
         )}
         {history.map((h, i) => (
           <div key={i} style={{ marginBottom: 12 }}>
-            <div style={{ textAlign: 'right', color: '#333' }}>🗣️ {h.userMsg}</div>
-            <div style={{ textAlign: 'left', marginTop: 4 }}>
-              {renderResult(
-                h.result,
-                (index) => sendMessage(String(index)),
-                (index) => sendMessage(`刪除第${index}筆`),
-                (category) => sendMessage(category),
-                (params) => sendListMore(params),
-                (category) => sendMessage(`列出這個月${category}`),
-                (month) => sendReportMonth(month),
-                (source, label) => sendManageStart(source, label),
-                (id, label) => sendEditRecord(id, label),
-                (id, label) => sendConfirmDelete(id, label),
-                (id, label) => sendDeleteRecord(id, label)
-              )}
+            <div style={{ textAlign: 'right', color: '#333', marginBottom: 4 }}>🗣️ {h.userMsg}</div>
+            <div style={{ textAlign: 'left' }}>
+              {h.error && <div style={{ color: '#a33' }}>❌ {h.error}</div>}
+              {h.messages && h.messages.map((m, mi) => <LineMessageView key={mi} message={m} onAction={handleAction} />)}
             </div>
           </div>
         ))}

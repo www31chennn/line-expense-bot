@@ -6,6 +6,11 @@ import {
   startEditRecord,
   deleteRecordDirect,
   startConfirmDelete,
+  toggleCategoryEnabled,
+  startCategoryActionMenu,
+  startCategoryEmojiEdit,
+  startCategoryRename,
+  getCategorySettingsMore,
 } from '../../lib/parseExpense';
 
 export default async function handler(req, res) {
@@ -13,7 +18,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, userId, listMore, reportMonth, manageSource, editRecordId, deleteRecordId, confirmDeleteId } = req.body;
+  const {
+    message,
+    userId,
+    listMore,
+    reportMonth,
+    manageSource,
+    editRecordId,
+    deleteRecordId,
+    confirmDeleteId,
+    toggleCategoryName,
+    categoryMenuName,
+    startCategoryEmojiName,
+    startCategoryRenameName,
+    categorySettingsMoreOffset,
+  } = req.body;
   const uid = userId || 'test-user';
 
   try {
@@ -44,6 +63,31 @@ export default async function handler(req, res) {
 
     if (deleteRecordId) {
       const result = await deleteRecordDirect(uid, deleteRecordId);
+      return res.status(200).json(result);
+    }
+
+    if (toggleCategoryName) {
+      const result = await toggleCategoryEnabled(uid, toggleCategoryName);
+      return res.status(200).json(result);
+    }
+
+    if (categoryMenuName) {
+      const result = await startCategoryActionMenu(uid, categoryMenuName);
+      return res.status(200).json(result);
+    }
+
+    if (startCategoryEmojiName) {
+      const result = await startCategoryEmojiEdit(uid, startCategoryEmojiName);
+      return res.status(200).json(result);
+    }
+
+    if (startCategoryRenameName) {
+      const result = await startCategoryRename(uid, startCategoryRenameName);
+      return res.status(200).json(result);
+    }
+
+    if (categorySettingsMoreOffset != null) {
+      const result = await getCategorySettingsMore(uid, categorySettingsMoreOffset);
       return res.status(200).json(result);
     }
 

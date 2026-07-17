@@ -87,7 +87,7 @@ export default function ReportPage() {
                       outerRadius={90}
                     >
                       {report.categories.map((entry) => (
-                        <Cell key={entry.category} fill={COLORS[entry.category] || '#9ca3af'} />
+                        <Cell key={entry.category} fill={entry.color || COLORS[entry.category] || '#9ca3af'} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value, name) => [`$${value}`, name]} />
