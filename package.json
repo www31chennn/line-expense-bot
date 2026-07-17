@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "setup-rich-menu": "node -r dotenv/config scripts/setup-rich-menu.js dotenv_config_path=.env.local",
-    "test-data": "node -r dotenv/config scripts/test-data.js dotenv_config_path=.env.local --"
+    "test-data": "node -r dotenv/config scripts/test-data.js dotenv_config_path=.env.local --",
+    "broadcast": "node -r dotenv/config scripts/broadcast.js dotenv_config_path=.env.local --"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
