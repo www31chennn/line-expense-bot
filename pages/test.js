@@ -715,42 +715,6 @@ function renderResult(result, onSelectIndex, onDeleteIndex, onSelectCategory, on
     );
   }
 
-  if (result.type === 'choose_action') {
-    const r = result.record;
-    return (
-      <div style={{ color: '#b8860b' }}>
-        {result.invalid && <div style={{ color: '#a33', fontSize: 13, marginBottom: 4 }}>⚠️ 看不懂，請點下面按鈕：</div>}
-        <div>
-          ✏️ 選好了：{r.date} {r.item} ${r.amount}（{r.category}）
-        </div>
-        <div>要編輯還是刪除？</div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-          <button
-            type="button"
-            onClick={() => onSelectCategory('編輯')}
-            style={{ padding: '6px 14px', border: '1px solid #b8860b', borderRadius: 16, background: '#fff', color: '#b8860b', cursor: 'pointer' }}
-          >
-            ✏️ 編輯
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectCategory('刪除')}
-            style={{ padding: '6px 14px', border: '1px solid #a33', borderRadius: 16, background: '#fff', color: '#a33', cursor: 'pointer' }}
-          >
-            🗑️ 刪除
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectCategory('取消')}
-            style={{ padding: '6px 14px', border: '1px solid #999', borderRadius: 16, background: '#fff', color: '#999', cursor: 'pointer' }}
-          >
-            ❌ 取消
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (result.type === 'manage_cancelled') {
     return <div style={{ color: '#999' }}>❌ 已取消</div>;
   }
