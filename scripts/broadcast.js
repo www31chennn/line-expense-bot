@@ -61,19 +61,32 @@ const announcement = {
             { type: 'text', text: '✏️ 修改分類的 emoji 或名稱', size: 'xs', color: '#555555', wrap: true },
           ],
         },
-        { type: 'text', text: '輸入「分類設定」立即查看', size: 'xs', color: '#999999', wrap: true, margin: 'md' },
+        {
+          type: 'text',
+          text: '輸入「分類設定」立即查看，或輸入「使用說明」看完整功能介紹',
+          size: 'xs',
+          color: '#999999',
+          wrap: true,
+          margin: 'md',
+        },
       ],
     },
     footer: {
       type: 'box',
       layout: 'vertical',
       paddingAll: 'md',
+      spacing: 'sm',
       contents: [
         {
           type: 'button',
           style: 'primary',
           color: '#5B7F76',
           action: { type: 'message', label: '查看分類設定', text: '分類設定' },
+        },
+        {
+          type: 'button',
+          style: 'secondary',
+          action: { type: 'message', label: '使用說明', text: '使用說明' },
         },
       ],
     },
