@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 
 const COLORS = {
   飲食: '#f97066',
@@ -20,6 +32,7 @@ function currentMonth() {
 export default function ReportPage() {
   const [month, setMonth] = useState(currentMonth());
   const [report, setReport] = useState(null);
+  const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -46,6 +59,22 @@ export default function ReportPage() {
         if (!cancelled) setLoading(false);
       });
 
+    return () => {
+      cancelled = true;
+    };
+  }, [month]);
+
+  // 近6個月趨勢另外抓：失敗不影響主報表（折線圖缺席就好，不整頁報錯）
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/monthly-report?userId=test-user&month=${month}&trend=6`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setTrend(data.months || null);
+      })
+      .catch(() => {
+        if (!cancelled) setTrend(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -114,6 +143,26 @@ export default function ReportPage() {
                   ))}
                 </tbody>
               </table>
+            </>
+          )}
+
+          {trend && trend.length > 1 && (
+            <>
+              <h3 style={{ marginTop: 32, marginBottom: 8, fontSize: 16 }}>近 {trend.length} 個月趨勢</h3>
+              <div style={{ width: '100%', height: 220 }}>
+                <ResponsiveContainer>
+                  <LineChart data={trend} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={(m) => m.slice(5) + '月'} />
+                    <YAxis tick={{ fontSize: 11 }} width={52} />
+                    <Tooltip
+                      formatter={(value) => [`$${value}`, '總支出']}
+                      labelFormatter={(m) => `${m}（${(trend.find((t) => t.month === m) || {}).count ?? 0} 筆）`}
+                    />
+                    <Line type="monotone" dataKey="total" stroke="#5B7F76" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </>
           )}
         </>

@@ -45,6 +45,29 @@ function FlexNode({ node, onAction }) {
     return <img src={node.url} style={{ width: '100%', display: 'block' }} />;
   }
 
+  if (node.type === 'button') {
+    // LINE 的 button 節點：link 樣式是無底色文字鈕，primary 是實心主色鈕
+    const isPrimary = node.style === 'primary';
+    return (
+      <div
+        onClick={node.action ? () => onAction(node.action) : undefined}
+        style={{
+          textAlign: 'center',
+          padding: node.height === 'sm' ? '8px 12px' : '12px 16px',
+          marginTop: SPACE_PX[node.margin] || 0,
+          borderRadius: 8,
+          backgroundColor: isPrimary ? '#5B7F76' : 'transparent',
+          color: isPrimary ? '#ffffff' : '#42659A',
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: 'pointer',
+        }}
+      >
+        {node.action ? node.action.label : ''}
+      </div>
+    );
+  }
+
   if (node.type === 'box') {
     return (
       <div
@@ -75,25 +98,50 @@ function FlexNode({ node, onAction }) {
     );
   }
 
-  return null;
-}
-
-// bubble 本身（header/body/footer）外面再包一層卡片容器（邊框、陰影、圓角、最大寬度）
-function FlexBubbleView({ bubble, onAction }) {
+  // 防漏網：lineFormat 產生了這裡沒實作的節點類型時，顯示醒目警示而不是靜默跳過——
+  // 之前 button 節點就是被這行舊的 return null 吃掉的，才會出現「/test 沒有、真機有」的落差。
+  // 看到這個紅框就代表 FlexNode 要補一種節點的渲染
   return (
-    <div
-      style={{
-        border: '1px solid #e5e5e5',
-        borderRadius: 12,
-        overflow: 'hidden',
-        maxWidth: 320,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-        background: '#fff',
-      }}
-    >
-      {bubble.header && <FlexNode node={bubble.header} onAction={onAction} />}
-      {bubble.body && <FlexNode node={bubble.body} onAction={onAction} />}
-      {bubble.footer && <FlexNode node={bubble.footer} onAction={onAction} />}
+    <div style={{ background: '#ffecec', color: '#c0392b', fontSize: 11, padding: 6, borderRadius: 4 }}>
+      ⚠️ /test 渲染器未支援的節點類型：{node.type}（真機 LINE 會正常顯示，請補 FlexNode 實作）
+    </div>
+  );
+}
+// 這裡的渲染是「近似」不是 100% 還原（LINE 的 Flex 排版引擎有很多細節：gravity、offset、
+// baseline、aspectRatio 等這裡沒實作）——要做像素級確認時，按 JSON 鈕把這張卡的
+// Flex JSON 複製起來，貼到 LINE 官方 Flex Message Simulator 看官方渲染結果
+function FlexBubbleView({ bubble, onAction }) {
+  const [copied, setCopied] = useState(false);
+  function copyJson() {
+    navigator.clipboard.writeText(JSON.stringify(bubble, null, 2)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  return (
+    <div style={{ maxWidth: 320 }}>
+      <div
+        style={{
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+          background: '#fff',
+        }}
+      >
+        {bubble.header && <FlexNode node={bubble.header} onAction={onAction} />}
+        {bubble.body && <FlexNode node={bubble.body} onAction={onAction} />}
+        {bubble.footer && <FlexNode node={bubble.footer} onAction={onAction} />}
+      </div>
+      <div style={{ textAlign: 'right', marginTop: 2 }}>
+        <span
+          onClick={copyJson}
+          title="複製這張卡的 Flex JSON，貼到 LINE 官方 Flex Message Simulator 看正式渲染"
+          style={{ fontSize: 10, color: '#aaaaaa', cursor: 'pointer', userSelect: 'none' }}
+        >
+          {copied ? '✓ 已複製，貼到官方模擬器' : '{ } 複製JSON'}
+        </span>
+      </div>
     </div>
   );
 }
@@ -171,7 +219,13 @@ function LineMessageView({ message, onAction }) {
       </div>
     );
   }
-  return null;
+  // 防漏網：非 text/flex 的訊息類型（未來如果 lineFormat 開始送 sticker、image 訊息等）
+  // 顯示警示而不是整則靜默消失
+  return (
+    <div style={{ background: '#ffecec', color: '#c0392b', fontSize: 12, padding: 8, borderRadius: 6, marginBottom: 8 }}>
+      ⚠️ /test 未支援的訊息類型：{message.type}（真機 LINE 會正常顯示）
+    </div>
+  );
 }
 
 export default function TestPage() {
@@ -230,6 +284,9 @@ export default function TestPage() {
   }
   function sendCategoryMenu(name, userMsg) {
     return callApi({ categoryMenuName: name }, userMsg ?? `管理${name}`);
+  }
+  function sendStartAddCategory(userMsg) {
+    return callApi({ startAddCategoryFlag: true }, userMsg ?? '新增分類');
   }
   function sendStartCategoryEmoji(name, userMsg) {
     return callApi({ startCategoryEmojiName: name }, userMsg ?? `修改${name}的emoji`);
@@ -296,6 +353,11 @@ export default function TestPage() {
       if (type === 'manage_start') return sendManageStart(params.get('source'), userMsg);
       if (type === 'toggle_category') return sendToggleCategory(params.get('name'), userMsg);
       if (type === 'category_menu') return sendCategoryMenu(params.get('name'), userMsg);
+      if (type === 'undo_records') {
+        const ids = (params.get('ids') || '').split(',').filter(Boolean);
+        return callApi({ undoRecordIds: ids }, userMsg ?? '撤銷剛剛的記帳');
+      }
+      if (type === 'start_add_category') return sendStartAddCategory(userMsg);
       if (type === 'start_category_emoji') return sendStartCategoryEmoji(params.get('name'), userMsg);
       if (type === 'start_category_rename') return sendStartCategoryRename(params.get('name'), userMsg);
       if (type === 'category_settings_more') {

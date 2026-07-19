@@ -10,10 +10,19 @@ import {
   startCategoryActionMenu,
   startCategoryEmojiEdit,
   startCategoryRename,
+  startAddCategory,
+  undoRecords,
   getCategorySettingsMore,
 } from '../../lib/parseExpense';
 
 export default async function handler(req, res) {
+  // 安全防護：這個端點接受任意 userId、能對任何使用者的帳本讀寫刪，
+  // 部署到正式環境後絕不能公開。production 一律拒絕，除非明確設了 ALLOW_TEST_PAGE=true
+  // （本機 npm run dev 的 NODE_ENV 是 development，不受影響）
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_TEST_PAGE !== 'true') {
+    return res.status(405).json({ error: 'test-parse 在正式環境停用（要開放請設環境變數 ALLOW_TEST_PAGE=true）' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -31,6 +40,8 @@ export default async function handler(req, res) {
     categoryMenuName,
     startCategoryEmojiName,
     startCategoryRenameName,
+    startAddCategoryFlag,
+    undoRecordIds,
     categorySettingsMoreOffset,
   } = req.body;
   const uid = userId || 'test-user';
@@ -73,6 +84,16 @@ export default async function handler(req, res) {
 
     if (categoryMenuName) {
       const result = await startCategoryActionMenu(uid, categoryMenuName);
+      return res.status(200).json(result);
+    }
+
+    if (undoRecordIds) {
+      const result = await undoRecords(uid, undoRecordIds);
+      return res.status(200).json(result);
+    }
+
+    if (startAddCategoryFlag) {
+      const result = await startAddCategory(uid);
       return res.status(200).json(result);
     }
 

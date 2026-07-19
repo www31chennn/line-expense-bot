@@ -11,6 +11,8 @@ import {
   startCategoryActionMenu,
   startCategoryEmojiEdit,
   startCategoryRename,
+  startAddCategory,
+  undoRecords,
   getCategorySettingsMore,
 } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
@@ -131,6 +133,19 @@ async function handleEvent(event, baseUrl) {
       if (params.get('action') === 'category_menu') {
         const name = params.get('name');
         const result = await startCategoryActionMenu(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'undo_records') {
+        const ids = (params.get('ids') || '').split(',').filter(Boolean);
+        const result = await undoRecords(userId, ids);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'start_add_category') {
+        const result = await startAddCategory(userId);
         await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }

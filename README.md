@@ -1,26 +1,39 @@
 # AI 記帳 LINE Bot
 
-Next.js 專案，透過 LINE Messaging API 提供記帳、查詢、預算追蹤功能，使用 Gemini API
-做自然語言解析，資料儲存在 Firebase Firestore。
+Next.js 專案，透過 LINE Messaging API 提供記帳（含一鍵撤銷）、查詢、月度比較、預算追蹤、分類管理、月報表功能，
+使用 Gemini API 做自然語言解析，資料儲存在 Firebase Firestore。
 
-> **關於免費額度**：Gemini API 免費層級（`gemini-2.5-flash`）不需要信用卡，
-> 額度是每分鐘約 10 次、每天約 250 次請求，個人記帳用量足夠。
+> **關於免費額度**：Gemini API 免費層級不需要信用卡（本專案用的模型是
+> `gemini-3.1-flash-lite`，定義在 `lib/parseExpense.js`）。免費額度 Google 會不定期調整，
+> 實際數字以 [AI Studio 的 rate limits 頁面](https://ai.google.dev/gemini-api/docs/rate-limits)
+> 顯示為準，個人記帳用量通常足夠。
 > 但 Google 的免費層級條款允許將送出的內容用於改善模型，
 > 如果會記錄較私人的備註內容，這點請留意。
 
 ## 檔案說明
 
 ```
-package.json              專案設定與套件依賴
-next.config.js            Next.js 設定
-pages/_app.js              App 進入點
-pages/index.js             首頁（導到 /test）
-lib/parseExpense.js       核心邏輯：文字 → AI 解析 → 寫入 Firebase（LINE webhook 也呼叫同一個函式）
-lib/categories.js         分類定義（內建8個 + 使用者自訂）、啟用/停用邏輯，供 parseExpense.js/export.js 共用
-lib/firebaseAdmin.js      Firebase Admin 初始化
-pages/api/test-parse.js   給網頁測試用的 API route
-pages/test.js              測試網頁（一個輸入框，模擬聊天）
-.env.local.example        環境變數範例
+package.json                 專案設定與套件依賴
+next.config.js               Next.js 設定
+pages/_app.js                App 進入點
+pages/index.js               首頁（導到 /test）
+pages/test.js                測試網頁（模擬 LINE 聊天，直接渲染實際會送出的 Flex Message JSON）
+pages/report.js              瀏覽器版每月分類報表（recharts 圓餅圖）
+pages/api/line-webhook.js    LINE webhook 進入點（簽章驗證、message/postback/follow 事件分派）
+pages/api/test-parse.js      給 /test 網頁用的 API route（跟 webhook 共用同一套核心邏輯）
+pages/api/export.js          CSV 匯出（明細清單的「匯出Excel」按鈕會產生這裡的連結）
+pages/api/monthly-report.js  給 /report 網頁用的報表 API
+lib/parseExpense.js          核心邏輯：意圖分類（AI）→ 對應處理 → 回傳結果物件
+lib/lineFormat.js            把 handleMessage() 的結果轉成 LINE 訊息格式（Flex/Quick Reply）。
+                             注意：這個檔案必須維持零 import，因為 pages/test.js 會把它
+                             打包進瀏覽器端，一牽連到 firebase-admin 就會讓 build 失敗
+lib/categories.js            分類定義（內建8個 + 使用者自訂）、啟用/停用邏輯，供 parseExpense.js/export.js 共用
+lib/firebaseAdmin.js         Firebase Admin 初始化
+scripts/setup-rich-menu.js   建立 Rich Menu（見 6.5 節）
+scripts/broadcast.js         群發公告訊息（見第 8 節）
+scripts/test-data.js         匯入/清除測試資料（見 4.1 節）
+richmenu.png                 Rich Menu 選單圖片（2500x1686）
+.env.local.example           環境變數範例
 .gitignore
 ```
 
@@ -33,7 +46,7 @@ cd line-expense-bot
 npm install
 ```
 
-（`package.json` 裡已經列好 `@google/generative-ai`、`firebase-admin`、`next`、`react`，
+（`package.json` 裡已經列好 `@google/generative-ai`、`firebase-admin`、`next`、`react`、`recharts` 等，
 `npm install` 會一次裝好，不用額外再裝。）
 
 ## 2. 建立 Firebase 專案
@@ -69,6 +82,24 @@ npm run dev
 - 「今天午餐200，晚餐跟朋友聚餐1500」（測試一次多筆）
 - 「今天心情不錯」（測試沒有金額時不應該誤記）
 
+另外 `http://localhost:3000/report` 是瀏覽器版的每月分類報表（圓餅圖 + 表格），
+資料來源跟 LINE 上的「月報表」卡片相同。
+
+### 4.1 測試資料工具（選用）
+
+`scripts/test-data.js` 可以批次匯入假資料或清除資料，方便測試分頁、月報表、大量資料時的行為：
+
+```bash
+# 匯入 1000 筆假資料（參數依序：userId、筆數、起始日期、結束日期，皆可省略）
+npm run test-data seed test-user 1000 2026-01-01 2026-07-15
+
+# 只清除 seed 產生的測試資料（rawMessage 開頭是「[測試資料]」的才會被刪）
+npm run test-data clear test-user
+
+# 清除該 userId 底下「全部」記錄（會要求輸入 CONFIRM 確認）
+npm run test-data clear test-user --all
+```
+
 ## 5. 部署到 Vercel
 
 1. 把程式碼推送到一個 GitHub repository
@@ -78,7 +109,10 @@ npm run dev
    （`GEMINI_API_KEY`、Firebase 三項）加進去；`FIREBASE_PRIVATE_KEY` 貼的時候要包含完整的換行
 5. 點 **Deploy**
 
-部署完成後可以用 `https://你的網域/test` 測試，行為應該跟本機一致。
+> **注意**：基於安全考量，`/test` 頁（與它背後的 `/api/test-parse`）在正式環境**預設停用**
+> （這個 API 不需登入就能指定任意 userId 讀寫資料，公開網址上不能開著）。
+> 部署後測試請直接用 LINE 真機測。若臨時需要在線上開啟 `/test`，
+> 到 Vercel 的 Environment Variables 加 `ALLOW_TEST_PAGE=true` 並 Redeploy，用完記得移除。
 
 之後每次 push 到 GitHub 的預設分支，Vercel 會自動重新部署。
 
