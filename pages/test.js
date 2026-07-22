@@ -353,6 +353,11 @@ export default function TestPage() {
       if (type === 'manage_start') return sendManageStart(params.get('source'), userMsg);
       if (type === 'toggle_category') return sendToggleCategory(params.get('name'), userMsg);
       if (type === 'category_menu') return sendCategoryMenu(params.get('name'), userMsg);
+      if (type === 'confirm_calc_pct') {
+        const category = decodeURIComponent(params.get('category') || '');
+        const pct = params.get('pct') || '';
+        return callApi({ confirmCalcPct: true, confirmCalcCategory: category, confirmCalcPctValue: pct }, userMsg ?? `確認將「${category}」設為 ${pct}%`);
+      }
       if (type === 'undo_records') {
         const ids = (params.get('ids') || '').split(',').filter(Boolean);
         return callApi({ undoRecordIds: ids }, userMsg ?? '撤銷剛剛的記帳');
@@ -363,6 +368,19 @@ export default function TestPage() {
       if (type === 'category_settings_more') {
         return sendCategorySettingsMore(parseInt(params.get('offset'), 10) || 0, userMsg);
       }
+      return;
+    }
+
+    if (action.type === 'uri') {
+      // LIFF 連結在真機是內嵌 webview，在這個純聊天模擬器沒有等價的東西——
+      // 改成開新分頁指向本機的開發模式頁面（?devUser=test-user），至少能看到真實畫面，
+      // 而不是打開一個在瀏覽器裡打不開的 liff.line.me 連結
+      if (action.uri && action.uri.includes('liff.line.me')) {
+        window.open('/liff/budget?devUser=test-user', '_blank');
+        return;
+      }
+      window.open(action.uri, '_blank');
+      return;
     }
   }
 

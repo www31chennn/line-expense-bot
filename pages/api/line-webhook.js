@@ -13,6 +13,9 @@ import {
   startCategoryRename,
   startAddCategory,
   undoRecords,
+  applyCategoryPercentDirect,
+  getPendingAction,
+  clearPendingAction,
   getCategorySettingsMore,
 } from '../../lib/parseExpense';
 import { resultToLineMessages, welcomeMessage } from '../../lib/lineFormat';
@@ -133,6 +136,21 @@ async function handleEvent(event, baseUrl) {
       if (params.get('action') === 'category_menu') {
         const name = params.get('name');
         const result = await startCategoryActionMenu(userId, name);
+        await replyMessages(event.replyToken, resultToLineMessages(result));
+        return;
+      }
+
+      if (params.get('action') === 'confirm_calc_pct') {
+        // category/pct 直接從 postback data 讀取，不依賴 pendingAction——
+        // 這樣多次反問同時存在時，每顆按鈕都帶著自己的資料，不會互相干擾
+        const category = decodeURIComponent(params.get('category') || '');
+        const pct = parseInt(params.get('pct') || '0', 10);
+        if (!category || !pct) {
+          await replyMessages(event.replyToken, [{ type: 'text', text: '⚠️ 比例設定資訊不完整，請重新輸入' }]);
+          return;
+        }
+        const applyResult = await applyCategoryPercentDirect(userId, category, pct);
+        const result = { type: 'calc_category_pct_confirmed', category, pct, ...applyResult };
         await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }

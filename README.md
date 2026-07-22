@@ -18,17 +18,18 @@ next.config.js               Next.js 設定
 pages/_app.js                App 進入點
 pages/index.js               首頁（導到 /test）
 pages/test.js                測試網頁（模擬 LINE 聊天，直接渲染實際會送出的 Flex Message JSON）
-pages/report.js              瀏覽器版每月分類報表（recharts 圓餅圖）
 pages/api/line-webhook.js    LINE webhook 進入點（簽章驗證、message/postback/follow 事件分派）
 pages/api/test-parse.js      給 /test 網頁用的 API route（跟 webhook 共用同一套核心邏輯）
 pages/api/export.js          CSV 匯出（明細清單的「匯出Excel」按鈕會產生這裡的連結）
-pages/api/monthly-report.js  給 /report 網頁用的報表 API
 lib/parseExpense.js          核心邏輯：意圖分類（AI）→ 對應處理 → 回傳結果物件
 lib/lineFormat.js            把 handleMessage() 的結果轉成 LINE 訊息格式（Flex/Quick Reply）。
                              注意：這個檔案必須維持零 import，因為 pages/test.js 會把它
                              打包進瀏覽器端，一牽連到 firebase-admin 就會讓 build 失敗
 lib/categories.js            分類定義（內建8個 + 使用者自訂）、啟用/停用邏輯，供 parseExpense.js/export.js 共用
 lib/firebaseAdmin.js         Firebase Admin 初始化
+lib/lineAuth.js              驗證 LIFF 頁面帶回來的 ID Token（見 6.6 節），確認操作者的真實身分
+pages/liff/budget.js         LIFF 網頁：一次設定所有分類比例，總和未滿100%不能儲存（見 6.6 節）
+pages/api/liff/budget.js     給上面 LIFF 頁面用的 API（GET 讀目前比例、POST 儲存，皆需驗證身分）
 scripts/setup-rich-menu.js   建立 Rich Menu（見 6.5 節）
 scripts/broadcast.js         群發公告訊息（見第 8 節）
 scripts/test-data.js         匯入/清除測試資料（見 4.1 節）
@@ -46,7 +47,7 @@ cd line-expense-bot
 npm install
 ```
 
-（`package.json` 裡已經列好 `@google/generative-ai`、`firebase-admin`、`next`、`react`、`recharts` 等，
+（`package.json` 裡已經列好 `@google/generative-ai`、`firebase-admin`、`next`、`react` 等，
 `npm install` 會一次裝好，不用額外再裝。）
 
 ## 2. 建立 Firebase 專案
@@ -82,8 +83,6 @@ npm run dev
 - 「今天午餐200，晚餐跟朋友聚餐1500」（測試一次多筆）
 - 「今天心情不錯」（測試沒有金額時不應該誤記）
 
-另外 `http://localhost:3000/report` 是瀏覽器版的每月分類報表（圓餅圖 + 表格），
-資料來源跟 LINE 上的「月報表」卡片相同。
 
 ### 4.1 測試資料工具（選用）
 
@@ -176,7 +175,7 @@ Messaging API 分頁最上面有個 QR code，掃描加好友，或直接搜尋 
 |---|---|
 | 明細 | `明細` |
 | 預算 | `這個月還剩多少可以花` |
-| 設定 | `設定`（會列出「設定預算」「設定分類」讓使用者選） |
+| 設定 | `設定`（會列出「預算設定」「修改分類」「修改比例」讓使用者選） |
 | 編輯 | `我要編輯` |
 | 使用說明 | `使用說明` |
 | 月報表 | `月報表` |
@@ -189,6 +188,53 @@ npm run setup-rich-menu
 
 如果之後想更換圖片或調整按鈕配置，修改 `richmenu.png` 跟 `scripts/setup-rich-menu.js`
 裡的 `areas`，重新執行一次指令即可（會建立一顆新的 Rich Menu 並重新設成預設選單）。
+
+### 6.6 LIFF：設定所有分類比例（選用）
+
+分類的預算比例只能透過這個 LIFF 網頁調整，聊天室不支援直接改比例（只能查看目前比例，
+輸入「目前比例」）。這是刻意的設計：以前開放用文字講「改哪個分類多少%」，分好幾次講
+很容易互相蓋掉彼此的設定，後來拿掉了，統一改成網頁——一次看到所有分類，調到剛好 100%
+才能存檔，不會有這個問題。
+
+網頁上有一顆「🪄 自動分配」按鈕，會依分類名稱給一個大概的起始比例（例如飲食通常佔比較高，
+用的是內建的固定權重表，不是根據你的實際花費算的），純粹給個參考方便接著手動調整，不是
+自動存檔——調整完還是要按「儲存比例」才會真的生效。
+
+> 這是選用功能。不設定底下的環境變數，「修改比例」卡片就不會出現這顆按鈕，其他功能完全不受影響。
+
+> **注意**：LINE 從 2020 年起不允許把 LIFF App 加在 Messaging API Channel 底下了，
+> 必須另外建一個 **LINE Login Channel**。步驟比想像中多一點，照著做就好。
+
+**步驟：**
+
+1. 到 [LINE Developers Console](https://developers.line.biz/console/)，確認你人在
+   Messaging API Channel 所屬的那個 **Provider** 底下（畫面最上層那個層級，不是 Channel）
+2. 在同一個 Provider 下 **Create a new channel** → 選 **LINE Login** → App types 選
+   **Web app** → 填名稱等資訊建立（如果已經有一個 LINE Login Channel 可以直接用那個，
+   不用每次都新建）
+3. 進到這個新建的 **LINE Login Channel** → **Basic settings** 分頁 → 往下捲到
+   **Linked OA** → **Edit** → 選你的 Messaging API 官方帳號 → **Update**
+   （這步是關鍵：沒連結的話，等一下驗證出來的身分會對不起來）
+4. 同一個 Channel 切到 **LIFF** 分頁 → **Add** → 填寫：
+   - **Size**：Full
+   - **Endpoint URL**：`https://你的網域/liff/budget`
+   - **Scope**：勾選 `openid`（要拿身分驗證用的 ID Token，這個必勾）
+5. 建立後會拿到一組 **LIFF ID**（長得像 `1234567890-AbCdEfGh`）
+6. 回到這個 **LINE Login Channel** 的 **Basic settings** 分頁，複製最上面的
+   **Channel ID**（純數字——這是 LINE Login Channel 的，不是 Messaging API 那個，
+   兩邊長得很像但欄位是分開的，容易抓錯）
+7. 把兩個值加進 Vercel 的環境變數（本機 `.env.local` 也要，見 `.env.local.example`）：
+   - `LINE_LOGIN_CHANNEL_ID` = 步驟6 的 Channel ID
+   - `NEXT_PUBLIC_LIFF_ID` = 步驟5 的 LIFF ID
+8. Redeploy（環境變數改動 Vercel 不會自動套用到舊的部署，要重新部署一次）
+
+> **關鍵**：步驟3 的 Linked OA 連結，是讓使用者在 LIFF 頁面驗證出來的身分（ID Token
+> 的 `sub`）跟聊天機器人平常用的 `userId` 對得起來的唯一原因。如果跳過這步，
+> 頁面能打開、也能存，但存進去的會是另一個跟 userId 不一致的身分，等於白做。
+
+完成後「設定」→「修改比例」卡片會多一顆「📝 設定所有比例」的按鈕（`uri` action，
+只能從 LINE 裡點開，直接用瀏覽器打開會卡在「請從 LINE 開啟」畫面——這是設計上刻意的
+限制，因為頁面需要 LIFF SDK 才能拿到有效的身分驗證）。
 
 ## 7. 分類管理（新增/停用/改名自訂分類）
 
@@ -219,17 +265,20 @@ Firestore 該使用者文件底下的 `categoryConfig` 欄位。
   這種由多個 Unicode 碼位組成、但視覺上是一個emoji的複合符號），不能是文字或多個 emoji 疊在一起，
   避免存進去的內容太長把卡片版面撐爆
 - 至少要保留一個啟用中的分類，不能全部停用
-- 不開放手動把分類設成 0%（會被導向改用「停用」），避免出現一堆 0% 但還啟用中、佔位置卻沒用的分類
-- 停用分類時，它原本的預算比例會自動收回、依比例分給其他啟用中的分類
-- 新增或重新啟用分類時，會自動給 5% 的起始比例（從其他啟用中分類收回），
-  因為 0% 的分類在長條圖上幾乎看不到線，也沒有實際的起始比例可以調整
+- 停用分類時，它原本的預算比例會變成「未分配」狀態，不會自動分給其他啟用中的分類——
+  可以到「修改比例」的網頁重新分配，或留著也沒關係（那筆錢單純沒有對應到任何分類上限）
+- 新增或重新啟用分類時，起始比例是 0%，不會從其他分類扣過來——記帳選單裡看得到這個分類，
+  但沒有分配到預算，需要自己去「修改比例」網頁設定
 
 「編輯」指令是用來編輯/刪除**記帳記錄**（例如「編輯運動類」會被理解成「編輯」，
 因為系統找不到特定記錄的日期/品項/編號，所以會列出最近的記錄讓你選，並不是編輯分類本身）；
 分類的新增、停用、啟用、改名、emoji 修改一律使用上表的專用指令，或是「分類設定」點列開啟的管理選單。
 
-分類比例的加總一律精準等於 100%：`setCategoryBudgets`（不管是手動調整、新增、停用、啟用觸發的）
-每次都會讓最後一個分類吸收剩下的差額，不是四捨五入湊出來的，所以不需要另外提供「校正到100%」的功能。
+分類比例的加總**不一定是 100%**：停用分類會讓比例出現「未分配」的缺口，新增/啟用分類
+起始也是 0%，這些狀態刻意保留、不自動幫你填滿，因為系統沒辦法替你決定該分配多少。
+唯一保證加總精準 100% 的地方是 LIFF 網頁——那邊要求送出的比例一次涵蓋全部啟用分類，
+且總和剛好 100% 才能存檔（`setCategoryBudgets` 收到「全部分類都有指定」時才會用這個
+規則直接寫入，不然就是分類設定卡片查看用的顯示邏輯而已）。
 
 ## 8. 群發公告訊息
 
