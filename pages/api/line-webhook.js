@@ -13,7 +13,7 @@ import {
   startCategoryRename,
   startAddCategory,
   undoRecords,
-  setCategoryBudgets,
+  applyCategoryPercentDirect,
   getPendingAction,
   clearPendingAction,
   getCategorySettingsMore,
@@ -149,8 +149,8 @@ async function handleEvent(event, baseUrl) {
           await replyMessages(event.replyToken, [{ type: 'text', text: '⚠️ 比例設定資訊不完整，請重新輸入' }]);
           return;
         }
-        await setCategoryBudgets(userId, [{ category, percentage: pct }]);
-        const result = { type: 'calc_category_pct_confirmed', category, pct };
+        const applyResult = await applyCategoryPercentDirect(userId, category, pct);
+        const result = { type: 'calc_category_pct_confirmed', category, pct, ...applyResult };
         await replyMessages(event.replyToken, resultToLineMessages(result));
         return;
       }

@@ -218,7 +218,7 @@ export default function LiffBudgetPage() {
             {total}%
           </span>
           <span style={{ fontSize: 12, color: isComplete ? BRAND_DEEP : INCOMPLETE, fontWeight: 600 }}>
-            {isComplete ? '剛好100%' : total > 100 ? `超過100%了，少${total - 100}%` : `還差${100 - total}%`}
+            {isComplete ? '剛好100%' : total > 100 ? `超過100%，多${total - 100}%` : `還差${100 - total}%`}
           </span>
         </div>
       </div>
@@ -293,7 +293,13 @@ export default function LiffBudgetPage() {
             cursor: isComplete ? 'pointer' : 'not-allowed',
           }}
         >
-          {phase === 'saving' ? '儲存中…' : isComplete ? '儲存比例' : `未滿 100%（還差 ${Math.max(0, 100 - total)}%）`}
+          {phase === 'saving'
+            ? '儲存中…'
+            : isComplete
+              ? '儲存比例'
+              : total > 100
+                ? `超過100%（多${total - 100}%）`
+                : `未滿100%（還差${100 - total}%）`}
         </button>
       </div>
     </div>

@@ -12,7 +12,7 @@ import {
   startCategoryRename,
   startAddCategory,
   undoRecords,
-  setCategoryBudgets,
+  applyCategoryPercentDirect,
   getPendingAction,
   clearPendingAction,
   getCategorySettingsMore,
@@ -98,8 +98,9 @@ export default async function handler(req, res) {
       if (!confirmCalcCategory || !confirmCalcPctValue) {
         return res.status(200).json({ type: 'calc_category_pct_confirmed', notFound: true });
       }
-      await setCategoryBudgets(uid, [{ category: confirmCalcCategory, percentage: parseInt(confirmCalcPctValue, 10) }]);
-      return res.status(200).json({ type: 'calc_category_pct_confirmed', category: confirmCalcCategory, pct: confirmCalcPctValue });
+      const pct = parseInt(confirmCalcPctValue, 10);
+      const applyResult = await applyCategoryPercentDirect(uid, confirmCalcCategory, pct);
+      return res.status(200).json({ type: 'calc_category_pct_confirmed', category: confirmCalcCategory, pct, ...applyResult });
     }
 
     if (undoRecordIds) {
