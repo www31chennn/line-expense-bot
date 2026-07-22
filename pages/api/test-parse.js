@@ -12,6 +12,9 @@ import {
   startCategoryRename,
   startAddCategory,
   undoRecords,
+  setCategoryBudgets,
+  getPendingAction,
+  clearPendingAction,
   getCategorySettingsMore,
 } from '../../lib/parseExpense';
 
@@ -42,6 +45,9 @@ export default async function handler(req, res) {
     startCategoryRenameName,
     startAddCategoryFlag,
     undoRecordIds,
+    confirmCalcPct,
+    confirmCalcCategory,
+    confirmCalcPctValue,
     categorySettingsMoreOffset,
   } = req.body;
   const uid = userId || 'test-user';
@@ -85,6 +91,15 @@ export default async function handler(req, res) {
     if (categoryMenuName) {
       const result = await startCategoryActionMenu(uid, categoryMenuName);
       return res.status(200).json(result);
+    }
+
+    if (confirmCalcPct) {
+      // category/pct 直接從參數讀，不依賴 pendingAction
+      if (!confirmCalcCategory || !confirmCalcPctValue) {
+        return res.status(200).json({ type: 'calc_category_pct_confirmed', notFound: true });
+      }
+      await setCategoryBudgets(uid, [{ category: confirmCalcCategory, percentage: parseInt(confirmCalcPctValue, 10) }]);
+      return res.status(200).json({ type: 'calc_category_pct_confirmed', category: confirmCalcCategory, pct: confirmCalcPctValue });
     }
 
     if (undoRecordIds) {
